@@ -5,6 +5,8 @@ class Workout {
   double weight;
   int reps;
   String workoutDate;
+  double? duration;
+  double? elevation;
 
   Workout({
     this.id,
@@ -13,6 +15,8 @@ class Workout {
     required this.weight,
     required this.reps,
     required this.workoutDate,
+    this.duration,
+    this.elevation,
   });
 
   Map<String, dynamic> toMap() {
@@ -23,6 +27,8 @@ class Workout {
       'weight': weight,
       'reps': reps,
       'workoutDate': workoutDate,
+      'duration': duration,
+      'elevation': elevation,
     };
   }
 
@@ -30,10 +36,12 @@ class Workout {
     return Workout(
       id: map['id'],
       exercise: map['exercise'],
-      setNo: map['setNo'],
-      weight: map['weight'],
-      reps: map['reps'],
-      workoutDate: map['workoutDate'],
+      setNo: map['setNo'] ?? 0,
+      weight: (map['weight'] ?? 0).toDouble(),
+      reps: map['reps'] ?? 0,
+      workoutDate: map['workoutDate'] ?? '',
+      duration: map['duration']?.toDouble(),
+      elevation: map['elevation']?.toDouble(),
     );
   }
 }
