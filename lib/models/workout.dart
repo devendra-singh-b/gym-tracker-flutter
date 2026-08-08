@@ -7,6 +7,7 @@ class Workout {
   String workoutDate;
   double? duration;
   double? elevation;
+  String? bodyArea;
 
   Workout({
     this.id,
@@ -17,6 +18,7 @@ class Workout {
     required this.workoutDate,
     this.duration,
     this.elevation,
+    this.bodyArea,
   });
 
   Map<String, dynamic> toMap() {
@@ -32,7 +34,9 @@ class Workout {
     };
   }
 
-  factory Workout.fromMap(Map<String, dynamic> map) {
+  factory Workout.fromMap(
+    Map<String, dynamic> map,
+  ) {
     return Workout(
       id: map['id'],
       exercise: map['exercise'],
@@ -42,6 +46,7 @@ class Workout {
       workoutDate: map['workoutDate'] ?? '',
       duration: map['duration']?.toDouble(),
       elevation: map['elevation']?.toDouble(),
+      bodyArea: map['bodyArea'],
     );
   }
 }

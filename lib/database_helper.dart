@@ -349,6 +349,39 @@ class DatabaseHelper {
     return result.map((json) => Workout.fromMap(json)).toList();
   }
 
+  Future<List<Map<String, dynamic>>> getWorkoutStats(
+  DateTime startDate,
+  DateTime endDate,
+) async {
+  final db = await instance.database;
+
+  final result = await db.rawQuery(
+    '''
+    SELECT
+      w.exercise,
+      w.setNo,
+      w.weight,
+      w.reps,
+      w.duration,
+      w.elevation,
+      w.workoutDate,
+      e.bodyArea
+    FROM workout w
+    LEFT JOIN exercise_master e
+      ON w.exercise = e.exercise
+    WHERE w.workoutDate >= ?
+      AND w.workoutDate < ?
+    ORDER BY w.id DESC
+    ''',
+    [
+      startDate.toIso8601String(),
+      endDate.toIso8601String(),
+    ],
+  );
+
+  return result;
+}
+
   // GET ALL EXERCISES
   Future<List<Exercise>> getAllExercises() async {
     final db = await instance.database;
