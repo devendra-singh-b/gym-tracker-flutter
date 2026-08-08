@@ -12,23 +12,31 @@ class AddWorkoutScreen extends StatefulWidget {
 }
 
 class _AddWorkoutScreenState extends State<AddWorkoutScreen> {
-  // Controllers
-  final TextEditingController setController = TextEditingController();
-  final TextEditingController weightController = TextEditingController();
-  final TextEditingController repsController = TextEditingController();
-  final TextEditingController durationController = TextEditingController();
-  final TextEditingController elevationController = TextEditingController();
-
   // Exercise list from database
   List<Exercise> exercises = [];
 
   // Selected exercise
   Exercise? selectedExercise;
 
+  // Multiple set controllers
+  final List<TextEditingController> weightControllers = [];
+  final List<TextEditingController> repsControllers = [];
+
+  // Cardio controllers
+  final TextEditingController durationController =
+      TextEditingController();
+
+  final TextEditingController elevationController =
+      TextEditingController();
+
   @override
   void initState() {
     super.initState();
+
     loadExercises();
+
+    // Start with Set 1
+    addSet();
   }
 
   Future<void> loadExercises() async {
@@ -41,144 +49,184 @@ class _AddWorkoutScreenState extends State<AddWorkoutScreen> {
     });
   }
 
+  void addSet() {
+    if (weightControllers.length >= 7) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Maximum 7 sets allowed"),
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      weightControllers.add(
+        TextEditingController(),
+      );
+
+      repsControllers.add(
+        TextEditingController(),
+      );
+    });
+  }
+
+  void removeAllSets() {
+    for (final controller in weightControllers) {
+      controller.dispose();
+    }
+
+    for (final controller in repsControllers) {
+      controller.dispose();
+    }
+
+    weightControllers.clear();
+    repsControllers.clear();
+
+    addSet();
+  }
+
   @override
   void dispose() {
-    setController.dispose();
-    weightController.dispose();
-    repsController.dispose();
+    for (final controller in weightControllers) {
+      controller.dispose();
+    }
+
+    for (final controller in repsControllers) {
+      controller.dispose();
+    }
+
     durationController.dispose();
     elevationController.dispose();
 
     super.dispose();
   }
 
+void showMessage(String message) {
+  if (!mounted) return;
+
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text(message),
+    ),
+  );
+}
+
+
   Future<void> saveWorkout() async {
     if (selectedExercise == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Please select an exercise"),
-        ),
-      );
+      showMessage("Please select an exercise");
       return;
     }
 
-    final isCardio = selectedExercise!.bodyArea == 'Cardio';
+    final isCardio =
+        selectedExercise!.bodyArea == 'Cardio';
 
-    // -----------------------------
-    // CARDIO VALIDATION
-    // -----------------------------
+    // ==========================================
+    // CARDIO
+    // ==========================================
+
     if (isCardio) {
       if (durationController.text.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Please enter time"),
-          ),
-        );
+        showMessage("Please enter time");
         return;
       }
 
       if (elevationController.text.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Please enter elevation"),
-          ),
-        );
+        showMessage("Please enter elevation");
         return;
       }
+
+      final workout = Workout(
+        exercise: selectedExercise!.exercise,
+        setNo: 0,
+        weight: 0,
+        reps: 0,
+        workoutDate:
+            DateTime.now().toIso8601String(),
+        duration:
+            double.parse(durationController.text),
+        elevation:
+            double.parse(elevationController.text),
+      );
+
+      await DatabaseHelper.instance
+          .insertWorkout(workout);
     }
 
-    // -----------------------------
-    // NORMAL EXERCISE VALIDATION
-    // -----------------------------
-    if (!isCardio) {
-      if (selectedExercise!.setEnabled &&
-          setController.text.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Please select set number"),
-          ),
-        );
-        return;
-      }
+    // ==========================================
+    // NORMAL EXERCISE
+    // ==========================================
 
-      if (selectedExercise!.weightEnabled &&
-          weightController.text.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Please enter weight"),
-          ),
-        );
-        return;
-      }
+    else {
+      for (int i = 0;
+          i < weightControllers.length;
+          i++) {
+        final setNumber = i + 1;
 
-      if (selectedExercise!.repsEnabled &&
-          repsController.text.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Please enter reps"),
-          ),
+        final weightText =
+            weightControllers[i].text.trim();
+
+        final repsText =
+            repsControllers[i].text.trim();
+
+        // Weight validation
+        if (selectedExercise!.weightEnabled &&
+            weightText.isEmpty) {
+          showMessage("Please enter weight for Set $setNumber");
+          return;
+        }
+
+        // Reps validation
+        if (selectedExercise!.repsEnabled &&
+            repsText.isEmpty) {
+          showMessage("Please enter reps for Set $setNumber");
+          return;
+        }
+
+        final workout = Workout(
+          exercise: selectedExercise!.exercise,
+
+          setNo: setNumber,
+
+          weight: selectedExercise!.weightEnabled
+              ? double.parse(weightText)
+              : 0,
+
+          reps: selectedExercise!.repsEnabled
+              ? int.parse(repsText)
+              : 0,
+
+          workoutDate:
+              DateTime.now().toIso8601String(),
+
+          duration: null,
+          elevation: null,
         );
-        return;
+
+        await DatabaseHelper.instance
+            .insertWorkout(workout);
       }
     }
-
-    // -----------------------------
-    // CREATE WORKOUT OBJECT
-    // -----------------------------
-    final workout = Workout(
-      exercise: selectedExercise!.exercise,
-
-      // For cardio these values are not applicable,
-      // so we store 0.
-      setNo: isCardio
-          ? 0
-          : int.parse(setController.text),
-
-      weight: isCardio
-          ? 0
-          : double.parse(weightController.text),
-
-      reps: isCardio
-          ? 0
-          : int.parse(repsController.text),
-
-      workoutDate: DateTime.now().toIso8601String(),
-
-      duration: isCardio
-          ? double.parse(durationController.text)
-          : null,
-
-      elevation: isCardio
-          ? double.parse(elevationController.text)
-          : null,
-    );
-
-    // Save to SQLite
-    await DatabaseHelper.instance.insertWorkout(workout);
 
     if (!mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("Workout saved successfully!"),
-      ),
-    );
+    showMessage("Workout saved successfully!");
 
-    // Clear everything
+    // Reset screen
     setState(() {
       selectedExercise = null;
     });
 
-    setController.clear();
-    weightController.clear();
-    repsController.clear();
     durationController.clear();
     elevationController.clear();
+
+    removeAllSets();
   }
 
   @override
   Widget build(BuildContext context) {
-    final isCardio = selectedExercise?.bodyArea == 'Cardio';
+    final isCardio =
+        selectedExercise?.bodyArea == 'Cardio';
 
     return Scaffold(
       appBar: AppBar(
@@ -188,121 +236,57 @@ class _AddWorkoutScreenState extends State<AddWorkoutScreen> {
       body: Padding(
         padding: const EdgeInsets.all(16),
 
-        child: Column(
-          children: [
-            // ==========================================
-            // EXERCISE
-            // ==========================================
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              // ==========================================
+              // EXERCISE
+              // ==========================================
 
-            DropdownButtonFormField<Exercise>(
-              initialValue: selectedExercise,
-
-              decoration: const InputDecoration(
-                labelText: "Exercise",
-                border: OutlineInputBorder(),
-              ),
-
-              items: exercises.map((exercise) {
-                return DropdownMenuItem<Exercise>(
-                  value: exercise,
-                  child: Text(exercise.exercise),
-                );
-              }).toList(),
-
-              onChanged: (value) {
-                setState(() {
-                  selectedExercise = value;
-
-                  // Clear old values
-                  setController.clear();
-                  weightController.clear();
-                  repsController.clear();
-                  durationController.clear();
-                  elevationController.clear();
-                });
-              },
-            ),
-
-            const SizedBox(height: 20),
-
-            // ==========================================
-            // CARDIO
-            // ==========================================
-
-            if (isCardio) ...[
-              TextField(
-                controller: durationController,
-
-                keyboardType:
-                    const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
+              DropdownButtonFormField<Exercise>(
+                initialValue: selectedExercise,
 
                 decoration: const InputDecoration(
-                  labelText: "Time (Minutes)",
+                  labelText: "Exercise",
                   border: OutlineInputBorder(),
                 ),
+
+                items: exercises.map((exercise) {
+                  return DropdownMenuItem<Exercise>(
+                    value: exercise,
+                    child: Text(exercise.exercise),
+                  );
+                }).toList(),
+
+                onChanged: (value) {
+                  setState(() {
+                    selectedExercise = value;
+
+                    durationController.clear();
+                    elevationController.clear();
+
+                    for (final controller
+                        in weightControllers) {
+                      controller.clear();
+                    }
+
+                    for (final controller
+                        in repsControllers) {
+                      controller.clear();
+                    }
+                  });
+                },
               ),
 
               const SizedBox(height: 20),
 
-              TextField(
-                controller: elevationController,
+              // ==========================================
+              // CARDIO
+              // ==========================================
 
-                keyboardType:
-                    const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-
-                decoration: const InputDecoration(
-                  labelText: "Elevation",
-                  border: OutlineInputBorder(),
-                ),
-              ),
-            ],
-
-            // ==========================================
-            // NORMAL EXERCISE
-            // ==========================================
-
-            if (!isCardio) ...[
-              // SET
-              if (selectedExercise?.setEnabled == true)
-                DropdownButtonFormField<int>(
-                  initialValue: setController.text.isEmpty
-                      ? null
-                      : int.tryParse(setController.text),
-
-                  decoration: const InputDecoration(
-                    labelText: "Set",
-                    border: OutlineInputBorder(),
-                  ),
-
-                  items: List.generate(7, (index) {
-                    final setNumber = index + 1;
-
-                    return DropdownMenuItem<int>(
-                      value: setNumber,
-                      child: Text("Set $setNumber"),
-                    );
-                  }),
-
-                  onChanged: (value) {
-                    if (value != null) {
-                      setController.text = value.toString();
-
-                      setState(() {});
-                    }
-                  },
-                ),
-
-              if (selectedExercise?.setEnabled == true)
-                const SizedBox(height: 20),
-
-              // WEIGHT
-              if (selectedExercise?.weightEnabled == true)
+              if (isCardio) ...[
                 TextField(
-                  controller: weightController,
+                  controller: durationController,
 
                   keyboardType:
                       const TextInputType.numberWithOptions(
@@ -310,44 +294,147 @@ class _AddWorkoutScreenState extends State<AddWorkoutScreen> {
                   ),
 
                   decoration: const InputDecoration(
-                    labelText: "Weight (Kg)",
+                    labelText: "Time (Minutes)",
                     border: OutlineInputBorder(),
                   ),
                 ),
 
-              if (selectedExercise?.weightEnabled == true)
                 const SizedBox(height: 20),
 
-              // REPS
-              if (selectedExercise?.repsEnabled == true)
                 TextField(
-                  controller: repsController,
+                  controller: elevationController,
 
-                  keyboardType: TextInputType.number,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
 
                   decoration: const InputDecoration(
-                    labelText: "Reps",
+                    labelText: "Elevation",
                     border: OutlineInputBorder(),
                   ),
                 ),
-            ],
+              ],
 
-            const SizedBox(height: 30),
+              // ==========================================
+              // NORMAL EXERCISE
+              // ==========================================
 
-            // ==========================================
-            // SAVE
-            // ==========================================
+              if (!isCardio) ...[
+                for (int i = 0;
+                    i < weightControllers.length;
+                    i++) ...[
+                  Row(
+                    children: [
+                      // SET NUMBER
+                      SizedBox(
+                        width: 60,
 
-            SizedBox(
-              width: double.infinity,
+                        child: Text(
+                          "Set ${i + 1}",
+                          style: const TextStyle(
+                            fontWeight:
+                                FontWeight.bold,
+                          ),
+                        ),
+                      ),
 
-              child: ElevatedButton(
-                onPressed: saveWorkout,
+                      const SizedBox(width: 10),
 
-                child: const Text("SAVE"),
+                      // WEIGHT
+                      if (selectedExercise
+                              ?.weightEnabled ==
+                          true)
+                        Expanded(
+                          child: TextField(
+                            controller:
+                                weightControllers[i],
+
+                            keyboardType:
+                                const TextInputType
+                                    .numberWithOptions(
+                              decimal: true,
+                            ),
+
+                            decoration:
+                                const InputDecoration(
+                              labelText:
+                                  "Weight (Kg)",
+                              border:
+                                  OutlineInputBorder(),
+                            ),
+                          ),
+                        ),
+
+                      if (selectedExercise
+                              ?.weightEnabled ==
+                          true)
+                        const SizedBox(width: 10),
+
+                      // REPS
+                      if (selectedExercise
+                              ?.repsEnabled ==
+                          true)
+                        Expanded(
+                          child: TextField(
+                            controller:
+                                repsControllers[i],
+
+                            keyboardType:
+                                TextInputType.number,
+
+                            decoration:
+                                const InputDecoration(
+                              labelText: "Reps",
+                              border:
+                                  OutlineInputBorder(),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 15),
+                ],
+
+                // ADD SET BUTTON
+                OutlinedButton.icon(
+                  onPressed:
+                      weightControllers.length < 7
+                          ? addSet
+                          : null,
+
+                  icon: const Icon(
+                    Icons.add,
+                  ),
+
+                  label: Text(
+                    weightControllers.length < 7
+                        ? "Add Set"
+                        : "Maximum 7 Sets",
+                  ),
+                ),
+              ],
+
+              const SizedBox(height: 30),
+
+              // ==========================================
+              // SAVE
+              // ==========================================
+
+              SizedBox(
+                width: double.infinity,
+
+                child: ElevatedButton(
+                  onPressed: saveWorkout,
+
+                  child: const Text(
+                    "SAVE WORKOUT",
+                  ),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
