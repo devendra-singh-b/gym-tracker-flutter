@@ -5,6 +5,8 @@ import '../models/workout.dart';
 import 'add_workout_screen.dart';
 import 'workout_history_screen.dart';
 import 'muscle_detail_screen.dart';
+import '../widgets/body_map.dart';
+
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -339,6 +341,17 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
 
                     const SizedBox(height: 30),
+// ==================================
+// BODY MAP
+// ==================================
+
+BodyMap(
+  muscleActivity: bodyAreaCount,
+  workouts: workouts,
+),
+const SizedBox(height: 25),
+
+                    
 
                     // ==================================
                     // BODY AREA SUMMARY
