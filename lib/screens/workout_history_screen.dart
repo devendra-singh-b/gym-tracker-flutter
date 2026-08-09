@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../database_helper.dart';
 import '../models/workout.dart';
+import 'edit_workout_screen.dart';
 
 class WorkoutHistoryScreen extends StatefulWidget {
   const WorkoutHistoryScreen({super.key});
@@ -32,6 +33,20 @@ class _WorkoutHistoryScreenState
     });
   }
 
+  bool canEditWorkout(Workout workout) {
+  final workoutDate =
+      DateTime.tryParse(workout.workoutDate);
+
+  if (workoutDate == null) {
+    return false;
+  }
+
+  final difference =
+      DateTime.now().difference(workoutDate);
+
+  return difference.inHours <= 72;
+}
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -61,31 +76,58 @@ class _WorkoutHistoryScreenState
                       const EdgeInsets.only(bottom: 10),
 
                   child: ListTile(
-                    leading: CircleAvatar(
-                      child: Icon(
-                        isCardio
-                            ? Icons.directions_run
-                            : Icons.fitness_center,
-                      ),
-                    ),
+  leading: CircleAvatar(
+    child: Icon(
+      isCardio
+          ? Icons.directions_run
+          : Icons.fitness_center,
+    ),
+  ),
 
-                    title: Text(
-                      workout.exercise,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                      ),
-                    ),
+  title: Text(
+    workout.exercise,
+    style: const TextStyle(
+      fontWeight: FontWeight.bold,
+      fontSize: 18,
+    ),
+  ),
 
-                    subtitle: Text(
-                      isCardio
-                          ? "${workout.duration} min • "
-                            "Elevation ${workout.elevation}"
-                          : "Set ${workout.setNo} • "
-                            "${workout.weight} Kg • "
-                            "${workout.reps} reps",
-                    ),
-                  ),
+  subtitle: Text(
+    isCardio
+        ? "${workout.duration} min • "
+          "Elevation ${workout.elevation}"
+        : "Set ${workout.setNo} • "
+          "${workout.weight} Kg • "
+          "${workout.reps} reps",
+  ),
+
+  trailing: canEditWorkout(workout)
+      ? IconButton(
+          icon: const Icon(
+            Icons.edit_outlined,
+          ),
+
+          tooltip: "Edit workout",
+
+          onPressed: () async {
+            final updated =
+                await Navigator.push<bool>(
+              context,
+              MaterialPageRoute(
+                builder: (context) =>
+                    EditWorkoutScreen(
+                  workout: workout,
+                ),
+              ),
+            );
+
+            if (updated == true) {
+              loadWorkouts();
+            }
+          },
+        )
+      : null,
+),
                 );
               },
             ),

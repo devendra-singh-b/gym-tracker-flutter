@@ -240,23 +240,35 @@ class _HomeScreenState extends State<HomeScreen> {
 
                       child: SegmentedButton<int>(
                         segments: const [
-                          ButtonSegment<int>(
-                            value: 0,
-                            label: Text("Daily"),
-                          ),
-                          ButtonSegment<int>(
-                            value: 1,
-                            label: Text("Weekly"),
-                          ),
-                          ButtonSegment<int>(
-                            value: 2,
-                            label: Text("Monthly"),
-                          ),
-                          ButtonSegment<int>(
-                            value: 3,
-                            label: Text("Yearly"),
-                          ),
-                        ],
+  ButtonSegment<int>(
+    value: 0,
+    label: FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Text("Daily"),
+    ),
+  ),
+  ButtonSegment<int>(
+    value: 1,
+    label: FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Text("Weekly"),
+    ),
+  ),
+  ButtonSegment<int>(
+    value: 2,
+    label: FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Text("Monthly"),
+    ),
+  ),
+  ButtonSegment<int>(
+    value: 3,
+    label: FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Text("Yearly"),
+    ),
+  ),
+],
 
                         selected: {
                           selectedPeriod,

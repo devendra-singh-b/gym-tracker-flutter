@@ -71,6 +71,7 @@ class _AddWorkoutScreenState extends State<AddWorkoutScreen> {
   }
 
   void removeAllSets() {
+
     for (final controller in weightControllers) {
       controller.dispose();
     }
@@ -84,6 +85,21 @@ class _AddWorkoutScreenState extends State<AddWorkoutScreen> {
 
     addSet();
   }
+
+void removeSet(int index) {
+  if (weightControllers.length <= 1) {
+    showMessage("At least one set is required");
+    return;
+  }
+
+  weightControllers[index].dispose();
+  repsControllers[index].dispose();
+
+  setState(() {
+    weightControllers.removeAt(index);
+    repsControllers.removeAt(index);
+  });
+}
 
   @override
   void dispose() {
@@ -391,9 +407,24 @@ void showMessage(String message) {
                             ),
                           ),
                         ),
+                        
+                        const SizedBox(width: 4),
+
+IconButton(
+  icon: const Icon(
+    Icons.delete_outline,
+    color: Colors.red,
+  ),
+  tooltip: "Remove Set",
+  onPressed: weightControllers.length > 1
+      ? () => removeSet(i)
+      : null,
+),
+
+                      
+
                     ],
                   ),
-
                   const SizedBox(height: 15),
                 ],
 
