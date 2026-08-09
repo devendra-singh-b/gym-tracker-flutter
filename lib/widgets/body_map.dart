@@ -17,51 +17,25 @@ class BodyMap extends StatefulWidget {
   @override
   State<BodyMap> createState() => _BodyMapState();
 }
-
 class _BodyMapState extends State<BodyMap> {
   bool showFront = true;
 
   String? selectedMuscle;
 
-  List<Workout> get selectedWorkouts {
-    if (selectedMuscle == null) {
-      return [];
-    }
+  List<Workout> _selectedWorkouts = [];
 
-    return widget.workouts
-        .where(
-          (workout) =>
-              workout.bodyArea == selectedMuscle,
-        )
-        .toList();
-  }
+  int _selectedExerciseCount = 0;
+  int _selectedSetCount = 0;
+  double _selectedVolume = 0;
 
-  int get selectedExerciseCount {
-    return selectedWorkouts
-        .map((workout) => workout.exercise)
-        .toSet()
-        .length;
-  }
+  int get selectedExerciseCount =>
+      _selectedExerciseCount;
 
-  int get selectedSetCount {
-    return selectedWorkouts
-        .where(
-          (workout) => workout.duration == null,
-        )
-        .length;
-  }
+  int get selectedSetCount =>
+      _selectedSetCount;
 
-  double get selectedVolume {
-    double volume = 0;
-
-    for (final workout in selectedWorkouts) {
-      if (workout.duration == null) {
-        volume += workout.weight * workout.reps;
-      }
-    }
-
-    return volume;
-  }
+  double get selectedVolume =>
+      _selectedVolume;
 
   void selectMuscle(String muscle) {
     if (!widget.muscleActivity.containsKey(muscle)) {
@@ -76,8 +50,36 @@ class _BodyMapState extends State<BodyMap> {
       return;
     }
 
+    final workouts = widget.workouts
+        .where(
+          (workout) =>
+              workout.bodyArea == muscle,
+        )
+        .toList();
+
+    final exercises = workouts
+        .map((workout) => workout.exercise)
+        .toSet();
+
+    int sets = 0;
+    double volume = 0;
+
+    for (final workout in workouts) {
+      if (workout.duration == null) {
+        sets++;
+        volume +=
+            workout.weight * workout.reps;
+      }
+    }
+
     setState(() {
       selectedMuscle = muscle;
+
+      _selectedWorkouts = workouts;
+      _selectedExerciseCount =
+          exercises.length;
+      _selectedSetCount = sets;
+      _selectedVolume = volume;
     });
   }
 
@@ -91,11 +93,12 @@ class _BodyMapState extends State<BodyMap> {
       MaterialPageRoute(
         builder: (context) => MuscleDetailScreen(
           bodyArea: selectedMuscle!,
-          workouts: selectedWorkouts,
+          workouts: _selectedWorkouts,
         ),
       ),
     );
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -135,10 +138,15 @@ class _BodyMapState extends State<BodyMap> {
               selected: {showFront},
 
               onSelectionChanged: (value) {
+                
                 setState(() {
-                  showFront = value.first;
-                  selectedMuscle = null;
-                });
+  showFront = value.first;
+  selectedMuscle = null;
+  _selectedWorkouts = [];
+  _selectedExerciseCount = 0;
+  _selectedSetCount = 0;
+  _selectedVolume = 0;
+});
               },
             ),
 
@@ -159,15 +167,16 @@ class _BodyMapState extends State<BodyMap> {
         ),
       ),
 
-      if (showFront)
-        buildFrontZones()
-      else
-        buildBackZones(),
+      // Summary FIRST
+  if (selectedMuscle != null)
+    buildFloatingSummary(),
 
-      if (selectedMuscle != null)
-        buildFloatingSummary(),
-        
-    ],
+  // Tap zones LAST
+  if (showFront)
+    buildFrontZones()
+  else
+    buildBackZones(),
+]
   ),
 ),
             const SizedBox(height: 12),
@@ -238,18 +247,18 @@ Widget buildFrontZones() {
             zone(
               "Shoulder",
               108,
-  205,
-  65,
-  65,
+              205,
+               65,
+               65,
             ),
 
             // SHOULDER - RIGHT
             zone(
               "Shoulder",
                337,
-  205,
-  65,
-  65,
+               205,
+                65,
+                65,
             ),
 
             // CHEST
@@ -258,25 +267,25 @@ Widget buildFrontZones() {
               170,
               225,
               170,
-              110,
+              100,
             ),
 
             // BICEP - LEFT
             zone(
               "Bicep",
-              112,
-  285,
-  62,
-  105,
+              102,
+              280,
+               62,
+               105,
             ),
 
             // BICEP - RIGHT
             zone(
               "Bicep",
-              336,
-  285,
-  62,
-  105,
+              356,
+              280,
+               62,
+               105,
             ),
 
             // CORE
@@ -292,18 +301,18 @@ Widget buildFrontZones() {
             zone(
               "Leg",
               125,
-              480,
-              110,
-              285,
+              490,
+              120,
+              370,
             ),
 
             // LEG - RIGHT
             zone(
               "Leg",
-              275,
-              480,
-              110,
               285,
+              490,
+              120,
+              370,
             ),
           ],
         );
@@ -361,63 +370,63 @@ Widget buildFrontZones() {
             zone(
               "Shoulder",
               88,
-  205,
-  70,
-  65,
+              205,
+              70,
+              65,
             ),
 
             // SHOULDER - RIGHT
             zone(
               "Shoulder",
                310,
-  205,
-  70,
-  65,
+               205,
+                70,
+                65,
             ),
 
             // BACK
             zone(
               "Back",
               150,
-              185,
+              200,
               170,
-              220,
+              230,
             ),
 
             // TRICEP - LEFT
             zone(
               "Tricep",
-              80,
-              275,
-              75,
-              140,
+              70,
+              280,
+              65,
+              125,
             ),
 
             // TRICEP - RIGHT
             zone(
               "Tricep",
-              313,
-              275,
-              75,
-              140,
+              330,
+              280,
+              65,
+              125,
             ),
 
             // LEG - LEFT
             zone(
               "Leg",
               110,
-              475,
+              485,
               115,
-              290,
+              370,
             ),
 
             // LEG - RIGHT
             zone(
               "Leg",
               245,
-              475,
+              485,
               115,
-              290,
+              370,
             ),
           ],
         );
@@ -429,7 +438,7 @@ Widget buildFrontZones() {
   // INVISIBLE TAP ZONE
   // ==========================================
 
-  Widget muscleZone(String muscle) {
+Widget muscleZone(String muscle) {
   return GestureDetector(
     behavior: HitTestBehavior.translucent,
 
@@ -437,30 +446,48 @@ Widget buildFrontZones() {
       selectMuscle(muscle);
     },
 
-    child: Container(
-      decoration: BoxDecoration(
-        color: Colors.blue.withValues(alpha: 0.25),
-        border: Border.all(
-          color: Colors.blue,
-          width: 2,
-        ),
-        borderRadius:
-            BorderRadius.circular(12),
-      ),
-
-      alignment: Alignment.center,
-
-      child: Text(
-        muscle,
-        style: const TextStyle(
-          color: Colors.blue,
-          fontWeight: FontWeight.bold,
-          fontSize: 11,
-        ),
-      ),
-    ),
+    child: const SizedBox.expand(),
   );
 }
+
+
+// ==========================================
+  // VISIBLE TAP ZONE
+  // ==========================================
+//   Widget muscleZone(String muscle) {
+//   return GestureDetector(
+//     behavior: HitTestBehavior.translucent,
+
+//     onTap: () {
+//       selectMuscle(muscle);
+//     },
+
+//     child: Container(
+//       decoration: BoxDecoration(
+//         color: Colors.blue.withValues(alpha: 0.25),
+//         border: Border.all(
+//           color: Colors.blue,
+//           width: 2,
+//         ),
+//         borderRadius:
+//             BorderRadius.circular(12),
+//       ),
+
+//       alignment: Alignment.center,
+
+//       child: Text(
+//         muscle,
+//         style: const TextStyle(
+//           color: Colors.blue,
+//           fontWeight: FontWeight.bold,
+//           fontSize: 11,
+//         ),
+//       ),
+//     ),
+//   );
+// }
+
+
 
   // ==========================================
   // FLOATING SUMMARY
@@ -473,144 +500,183 @@ Widget buildFrontZones() {
 
   final muscle = selectedMuscle!;
 
-  // Upper-body muscles -> upper side
-  final bool isUpperBody =
-      muscle == "Chest" ||
-      muscle == "Back" ||
-      muscle == "Shoulder" ||
-      muscle == "Bicep" ||
-      muscle == "Tricep" ||
-      muscle == "Core";
+  // Card stays in the blank area beside the body.
+  // Body image and tap zones remain untouched.
+  final bool cardOnLeft =
+    muscle == "Shoulder" ||
+    muscle == "Bicep" ||
+    muscle == "Chest" ||
+    muscle == "Back" ||
+    muscle == "Core";
 
-  // Left/right placement
-  final bool placeLeft =
-      muscle == "Back" ||
-      muscle == "Chest" ||
-      muscle == "Core";
+  double cardTop;
+
+  switch (muscle) {
+    case "Shoulder":
+      cardTop = 120;
+      break;
+
+    case "Bicep":
+    case "Tricep":
+      cardTop = 220;
+      break;
+
+    case "Chest":
+    case "Back":
+      cardTop = 145;
+      break;
+
+    case "Core":
+      cardTop = 285;
+      break;
+
+    case "Leg":
+      cardTop = 385;
+      break;
+
+    default:
+      cardTop = 145;
+  }
+
+  const double cardWidth = 108;
 
   return Positioned.fill(
-    child: Stack(
-      children: [
-        // ----------------------------------
-        // DOTTED POINTER
-        // ----------------------------------
+    child: LayoutBuilder(
+      builder: (context, constraints) {
+        return Stack(
+          children: [
+            // ==================================
+            // DOTTED CONNECTOR
+            // ==================================
+            Positioned.fill(
+              child: CustomPaint(
+                painter: MusclePointerPainter(
+                  muscle: muscle,
+                  cardOnLeft: cardOnLeft,
+                  cardTop: cardTop,
+                  cardWidth: cardWidth,
+                  showFront: showFront,
+                ),
+              ),
+            ),
 
-        CustomPaint(
-          painter: MusclePointerPainter(
-            muscle: muscle,
-            placeLeft: placeLeft,
-            isUpperBody: isUpperBody,
-          ),
-        ),
+            // ==================================
+            // SUMMARY CARD
+            // ==================================
+            Positioned(
+              top: cardTop,
+              left: cardOnLeft ? 2 : null,
+              right: cardOnLeft ? null : 2,
 
-        // ----------------------------------
-        // SUMMARY CARD
-        // ----------------------------------
+              child: GestureDetector(
+                onTap: openMuscleDetails,
 
-        Positioned(
-          top: isUpperBody ? 70 : 340,
-
-          left: placeLeft ? 4 : null,
-          right: placeLeft ? null : 4,
-
-          child: GestureDetector(
-            onTap: openMuscleDetails,
-
-            child: Material(
-              elevation: 8,
-
-              borderRadius:
-                  BorderRadius.circular(14),
-
-              child: Container(
-                width: 145,
-
-                padding:
-                    const EdgeInsets.all(12),
-
-                decoration: BoxDecoration(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .surface,
-
+                child: Material(
+                  elevation: 8,
                   borderRadius:
                       BorderRadius.circular(14),
 
-                  border: Border.all(
-                    color: activityBorderColor(
-                      muscle,
-                    ),
-                    width: 1.5,
-                  ),
+                  child: Container(
+                    width: cardWidth,
 
-                  boxShadow: const [
-                    BoxShadow(
-                      blurRadius: 10,
-                      offset: Offset(0, 4),
-                      color: Colors.black26,
-                    ),
-                  ],
-                ),
+                    padding:
+                        const EdgeInsets.all(10),
 
-                child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
+                    decoration: BoxDecoration(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .surface,
 
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            muscle,
+                      borderRadius:
+                          BorderRadius.circular(14),
 
-                            style:
-                                const TextStyle(
-                              fontSize: 17,
-                              fontWeight:
-                                  FontWeight.bold,
-                            ),
-                          ),
+                      border: Border.all(
+                        color:
+                            activityBorderColor(
+                          muscle,
                         ),
+                        width: 1.5,
+                      ),
 
-                        const Icon(
-                          Icons
-                              .arrow_forward_ios,
-                          size: 14,
+                      boxShadow: const [
+                        BoxShadow(
+                          blurRadius: 10,
+                          offset: Offset(0, 4),
+                          color: Colors.black26,
                         ),
                       ],
                     ),
 
-                    const SizedBox(height: 8),
+                    child: Column(
+                      crossAxisAlignment:
+                          CrossAxisAlignment.start,
 
-                    Text(
-                      "$selectedExerciseCount Exercises",
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                muscle,
+                                style:
+                                    const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight:
+                                      FontWeight.bold,
+                                ),
+                              ),
+                            ),
+
+                            const Icon(
+                              Icons
+                                  .arrow_forward_ios,
+                              size: 13,
+                            ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 7),
+
+                        Text(
+                          "$selectedExerciseCount Exercises",
+                          style: const TextStyle(
+                            fontSize: 13,
+                          ),
+                        ),
+
+                        Text(
+                          "$selectedSetCount Sets",
+                          style: const TextStyle(
+                            fontSize: 13,
+                          ),
+                        ),
+
+                        if (selectedVolume > 0)
+                          Text(
+                            "${selectedVolume.toStringAsFixed(0)} Kg",
+                            style:
+                                const TextStyle(
+                              fontSize: 13,
+                            ),
+                          ),
+
+                        const SizedBox(height: 4),
+
+                        const Text(
+                          "Tap for details",
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ],
                     ),
-
-                    Text(
-                      "$selectedSetCount Sets",
-                    ),
-
-                    if (selectedVolume > 0)
-                      Text(
-                        "${selectedVolume.toStringAsFixed(0)} Kg",
-                      ),
-
-                    const SizedBox(height: 5),
-
-                    const Text(
-                      "Tap for details",
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.grey,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),
-          ),
-        ),
-      ],
+          ],
+        );
+      },
     ),
   );
 }
@@ -690,16 +756,19 @@ Color activityBorderColor(String muscle) {
   }
 }
 
-class MusclePointerPainter
-    extends CustomPainter {
+class MusclePointerPainter extends CustomPainter {
   final String muscle;
-  final bool placeLeft;
-  final bool isUpperBody;
+  final bool cardOnLeft;
+  final double cardTop;
+  final double cardWidth;
+  final bool showFront;
 
   MusclePointerPainter({
     required this.muscle,
-    required this.placeLeft,
-    required this.isUpperBody,
+    required this.cardOnLeft,
+    required this.cardTop,
+    required this.cardWidth,
+    required this.showFront,
   });
 
   @override
@@ -707,83 +776,141 @@ class MusclePointerPainter
     Canvas canvas,
     Size size,
   ) {
-    Offset target;
+    // ----------------------------------
+    // ORIGINAL IMAGE DIMENSIONS
+    // ----------------------------------
 
-    // Approximate muscle points
-    // based on the current body image.
+    final double imageWidth =
+        showFront ? 510.0 : 468.0;
 
-    switch (muscle) {
-      case "Shoulder":
-        target = Offset(
-          size.width * 0.68,
-          size.height * 0.29,
-        );
-        break;
+    final double imageHeight =
+        showFront ? 1016.0 : 982.0;
 
-      case "Chest":
-        target = Offset(
-          size.width * 0.50,
-          size.height * 0.31,
-        );
-        break;
+    // ----------------------------------
+    // SAME SCALE AS BoxFit.contain
+    // ----------------------------------
 
-      case "Back":
-        target = Offset(
-          size.width * 0.38,
-          size.height * 0.34,
-        );
-        break;
+    final scale = math.min(
+      size.width / imageWidth,
+      size.height / imageHeight,
+    );
 
-      case "Bicep":
-      case "Tricep":
-        target = Offset(
-          size.width * 0.68,
-          size.height * 0.39,
-        );
-        break;
+    final displayedWidth =
+        imageWidth * scale;
 
-      case "Core":
-        target = Offset(
-          size.width * 0.50,
-          size.height * 0.47,
-        );
-        break;
+    final displayedHeight =
+        imageHeight * scale;
 
-      case "Leg":
-        target = Offset(
-          size.width * 0.65,
-          size.height * 0.75,
-        );
-        break;
+    final offsetX =
+        (size.width - displayedWidth) / 2;
 
-      default:
-        target = Offset(
-          size.width * 0.50,
-          size.height * 0.40,
-        );
+    final offsetY =
+        (size.height - displayedHeight) / 2;
+
+    // ----------------------------------
+    // TARGET IN ORIGINAL IMAGE PIXELS
+    // ----------------------------------
+
+    Offset imageTarget;
+
+    if (showFront) {
+      switch (muscle) {
+        case "Shoulder":
+          imageTarget = cardOnLeft
+              ? const Offset(140, 238)
+              : const Offset(370, 238);
+          break;
+
+        case "Chest":
+          imageTarget =
+              const Offset(255, 275);
+          break;
+
+        case "Bicep":
+          imageTarget = cardOnLeft
+              ? const Offset(133, 333)
+              : const Offset(387, 333);
+          break;
+
+        case "Core":
+          imageTarget =
+              const Offset(255, 395);
+          break;
+
+        case "Leg":
+          imageTarget = cardOnLeft
+              ? const Offset(185, 675)
+              : const Offset(345, 675);
+          break;
+
+        default:
+          imageTarget =
+              const Offset(255, 400);
+      }
+    } else {
+      switch (muscle) {
+        case "Shoulder":
+          imageTarget = cardOnLeft
+              ? const Offset(127, 252)
+              : const Offset(341, 252);
+          break;
+
+        case "Back":
+          imageTarget =
+              const Offset(234, 290);
+          break;
+
+        case "Tricep":
+          imageTarget = cardOnLeft
+              ? const Offset(118, 345)
+              : const Offset(350, 345);
+          break;
+
+        case "Leg":
+          imageTarget = cardOnLeft
+              ? const Offset(167, 630)
+              : const Offset(303, 630);
+          break;
+
+        default:
+          imageTarget =
+              const Offset(234, 350);
+      }
     }
 
-    final double cardX =
-        placeLeft
-            ? size.width * 0.30
-            : size.width * 0.70;
+    // ----------------------------------
+    // CONVERT IMAGE PIXELS -> SCREEN
+    // ----------------------------------
 
-    final double cardY =
-        isUpperBody
-            ? size.height * 0.22
-            : size.height * 0.72;
+    final target = Offset(
+      offsetX + imageTarget.dx * scale,
+      offsetY + imageTarget.dy * scale,
+    );
+
+    // ----------------------------------
+    // CARD CONNECTION POINT
+    // ----------------------------------
+
+    final cardCenterY =
+        cardTop + 55;
 
     final start = Offset(
-      cardX,
-      cardY,
+      cardOnLeft
+          ? cardWidth + 2
+          : size.width - cardWidth - 2,
+
+      cardCenterY,
     );
+
+    // ----------------------------------
+    // POINTER
+    // ----------------------------------
 
     final paint = Paint()
       ..color = activityPointerColor()
       ..strokeWidth = 2
       ..style = PaintingStyle.stroke;
 
-    // Dashed line
     drawDashedLine(
       canvas,
       start,
@@ -791,7 +918,10 @@ class MusclePointerPainter
       paint,
     );
 
-    // Target circle
+    // ----------------------------------
+    // TARGET DOT
+    // ----------------------------------
+
     final dotPaint = Paint()
       ..color = activityPointerColor()
       ..style = PaintingStyle.fill;
@@ -823,6 +953,10 @@ class MusclePointerPainter
     final distance =
         (end - start).distance;
 
+    if (distance == 0) {
+      return;
+    }
+
     final direction =
         (end - start) / distance;
 
@@ -835,8 +969,10 @@ class MusclePointerPainter
       final dashEnd =
           start +
               direction *
-                  (current + dashLength)
-                      .clamp(0, distance);
+                  math.min(
+                    current + dashLength,
+                    distance,
+                  );
 
       canvas.drawLine(
         dashStart,
@@ -851,11 +987,14 @@ class MusclePointerPainter
 
   @override
   bool shouldRepaint(
-    covariant MusclePointerPainter oldDelegate,
+    covariant MusclePointerPainter
+        oldDelegate,
   ) {
     return oldDelegate.muscle != muscle ||
-        oldDelegate.placeLeft != placeLeft ||
-        oldDelegate.isUpperBody !=
-            isUpperBody;
+        oldDelegate.cardOnLeft !=
+            cardOnLeft ||
+        oldDelegate.cardTop != cardTop ||
+        oldDelegate.cardWidth != cardWidth ||
+        oldDelegate.showFront != showFront;
   }
 }
