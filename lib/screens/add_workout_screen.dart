@@ -49,6 +49,245 @@ class _AddWorkoutScreenState extends State<AddWorkoutScreen> {
     });
   }
 
+  Future<void> _showExercisePicker() async {
+  String searchText = '';
+  String selectedArea = 'All';
+
+  final bodyAreas = <String>[
+    'All',
+    'Chest',
+    'Back',
+    'Shoulder',
+    'Leg',
+    'Bicep',
+    'Tricep',
+    'Core',
+    'Cardio',
+  ];
+
+  final result = await showModalBottomSheet<Exercise>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(
+        top: Radius.circular(20),
+      ),
+    ),
+    builder: (sheetContext) {
+      return StatefulBuilder(
+        builder: (context, setSheetState) {
+          final filteredExercises = exercises.where((exercise) {
+            final matchesArea =
+                selectedArea == 'All' ||
+                exercise.bodyArea == selectedArea;
+
+            final matchesSearch = searchText.isEmpty ||
+                exercise.exercise
+                    .toLowerCase()
+                    .contains(searchText.toLowerCase());
+
+            return matchesArea && matchesSearch;
+          }).toList();
+
+          final groupedExercises =
+              <String, List<Exercise>>{};
+
+          for (final exercise in filteredExercises) {
+            groupedExercises
+                .putIfAbsent(exercise.bodyArea, () => [])
+                .add(exercise);
+          }
+
+          return SafeArea(
+            child: SizedBox(
+              height: MediaQuery.of(context).size.height * 0.85,
+              child: Column(
+                children: [
+                  // Header
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      16,
+                      16,
+                      16,
+                      8,
+                    ),
+                    child: Row(
+                      children: [
+                        const Expanded(
+                          child: Text(
+                            'Select Exercise',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () {
+                            Navigator.pop(sheetContext);
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Search
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                    ),
+                    child: TextField(
+                      autofocus: false,
+                      decoration: InputDecoration(
+                        hintText: 'Search exercise...',
+                        prefixIcon: const Icon(Icons.search),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      onChanged: (value) {
+                        setSheetState(() {
+                          searchText = value;
+                        });
+                      },
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // Body area filter
+                  SizedBox(
+                    height: 42,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                      ),
+                      itemCount: bodyAreas.length,
+                      itemBuilder: (context, index) {
+                        final area = bodyAreas[index];
+                        final isSelected =
+                            selectedArea == area;
+
+                        return Padding(
+                          padding: const EdgeInsets.only(
+                            right: 8,
+                          ),
+                          child: ChoiceChip(
+                            label: Text(area),
+                            selected: isSelected,
+                            onSelected: (_) {
+                              setSheetState(() {
+                                selectedArea = area;
+                              });
+                            },
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  // Exercise list
+                  Expanded(
+                    child: filteredExercises.isEmpty
+                        ? const Center(
+                            child: Text(
+                              'No exercises found',
+                              style: TextStyle(
+                                color: Colors.grey,
+                              ),
+                            ),
+                          )
+                        : ListView(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
+                            children: groupedExercises.entries
+                                .map((entry) {
+                              return Column(
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.start,
+                                children: [
+                                  Padding(
+                                    padding:
+                                        const EdgeInsets.only(
+                                      top: 12,
+                                      bottom: 6,
+                                    ),
+                                    child: Text(
+                                      entry.key,
+                                      style: const TextStyle(
+                                        fontSize: 15,
+                                        fontWeight:
+                                            FontWeight.bold,
+                                        color: Colors.grey,
+                                      ),
+                                    ),
+                                  ),
+                                  ...entry.value.map(
+                                    (exercise) {
+                                      return ListTile(
+                                        contentPadding:
+                                            const EdgeInsets
+                                                .symmetric(
+                                          horizontal: 8,
+                                        ),
+                                        title: Text(
+                                          exercise.exercise,
+                                        ),
+                                        trailing:
+                                            selectedExercise ==
+                                                    exercise
+                                                ? const Icon(
+                                                    Icons.check,
+                                                  )
+                                                : null,
+                                        onTap: () {
+                                          Navigator.pop(
+                                            sheetContext,
+                                            exercise,
+                                          );
+                                        },
+                                      );
+                                    },
+                                  ),
+                                ],
+                              );
+                            }).toList(),
+                          ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    },
+  );
+
+  if (result == null || !mounted) return;
+
+  setState(() {
+    selectedExercise = result;
+
+    durationController.clear();
+    elevationController.clear();
+
+    for (final controller in weightControllers) {
+      controller.clear();
+    }
+
+    for (final controller in repsControllers) {
+      controller.clear();
+    }
+  });
+}
+
   void addSet() {
     if (weightControllers.length >= 7) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -259,41 +498,26 @@ void showMessage(String message) {
               // EXERCISE
               // ==========================================
 
-              DropdownButtonFormField<Exercise>(
-                initialValue: selectedExercise,
-
-                decoration: const InputDecoration(
-                  labelText: "Exercise",
-                  border: OutlineInputBorder(),
-                ),
-
-                items: exercises.map((exercise) {
-                  return DropdownMenuItem<Exercise>(
-                    value: exercise,
-                    child: Text(exercise.exercise),
-                  );
-                }).toList(),
-
-                onChanged: (value) {
-                  setState(() {
-                    selectedExercise = value;
-
-                    durationController.clear();
-                    elevationController.clear();
-
-                    for (final controller
-                        in weightControllers) {
-                      controller.clear();
-                    }
-
-                    for (final controller
-                        in repsControllers) {
-                      controller.clear();
-                    }
-                  });
-                },
-              ),
-
+             InkWell(
+  onTap: _showExercisePicker,
+  borderRadius: BorderRadius.circular(4),
+  child: InputDecorator(
+    decoration: const InputDecoration(
+      labelText: "Exercise",
+      border: OutlineInputBorder(),
+      suffixIcon: Icon(Icons.arrow_drop_down),
+    ),
+    child: Text(
+      selectedExercise?.exercise ?? "Select Exercise",
+      style: TextStyle(
+        color: selectedExercise == null
+            ? Colors.grey[600]
+            : null,
+        fontSize: 16,
+      ),
+    ),
+  ),
+),
               const SizedBox(height: 20),
 
               // ==========================================

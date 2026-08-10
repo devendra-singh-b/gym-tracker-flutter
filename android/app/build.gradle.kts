@@ -8,7 +8,9 @@ android {
     namespace = "com.example.gym_tracker"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
-
+    buildFeatures {
+    resValues = true
+                   }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -24,6 +26,31 @@ android {
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
+
+flavorDimensions += "environment"
+
+productFlavors {
+    create("prod") {
+        dimension = "environment"
+        applicationId = "com.devendra.gymtracker"
+        resValue(
+            "string",
+            "app_name",
+            "Gym Tracker"
+        )
+    }
+
+    create("sit") {
+        dimension = "environment"
+        applicationId = "com.devendra.gymtracker.sit"
+        resValue(
+            "string",
+            "app_name",
+            "Gym Tracker SIT"
+        )
+    }
+}
+
 
     buildTypes {
         release {

@@ -101,32 +101,86 @@ class _WorkoutHistoryScreenState
           "${workout.reps} reps",
   ),
 
-  trailing: canEditWorkout(workout)
-      ? IconButton(
-          icon: const Icon(
-            Icons.edit_outlined,
-          ),
-
-          tooltip: "Edit workout",
-
-          onPressed: () async {
-            final updated =
-                await Navigator.push<bool>(
-              context,
-              MaterialPageRoute(
-                builder: (context) =>
-                    EditWorkoutScreen(
-                  workout: workout,
-                ),
+  trailing: Row(
+  mainAxisSize: MainAxisSize.min,
+  children: [
+    if (canEditWorkout(workout))
+      IconButton(
+        icon: const Icon(Icons.edit_outlined),
+        tooltip: "Edit workout",
+        onPressed: () async {
+          final updated =
+              await Navigator.push<bool>(
+            context,
+            MaterialPageRoute(
+              builder: (context) =>
+                  EditWorkoutScreen(
+                workout: workout,
               ),
-            );
+            ),
+          );
 
-            if (updated == true) {
-              loadWorkouts();
-            }
+          if (updated == true) {
+            loadWorkouts();
+          }
+        },
+      ),
+
+    IconButton(
+      icon: const Icon(
+        Icons.delete_outline,
+        color: Colors.red,
+      ),
+      tooltip: "Delete workout",
+      onPressed: () async {
+        final confirm = await showDialog<bool>(
+          context: context,
+          builder: (context) {
+            return AlertDialog(
+              title: const Text("Delete Workout?"),
+              content: Text(
+                "Delete ${workout.exercise}, "
+                "Set ${workout.setNo}?",
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context, false);
+                  },
+                  child: const Text("CANCEL"),
+                ),
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context, true);
+                  },
+                  child: const Text(
+                    "DELETE",
+                    style: TextStyle(color: Colors.red),
+                  ),
+                ),
+              ],
+            );
           },
-        )
-      : null,
+        );
+
+        if (confirm == true) {
+          await DatabaseHelper.instance
+              .deleteWorkout(workout.id!);
+
+          await loadWorkouts();
+
+if (!context.mounted) return;
+
+ScaffoldMessenger.of(context).showSnackBar(
+  const SnackBar(
+    content: Text("Workout deleted"),
+  ),
+);
+        }
+      },
+    ),
+  ],
+),
 ),
                 );
               },
