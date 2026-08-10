@@ -43,3 +43,8 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+# Local SQLite databases / backups
+*.db
+
+# Keep the SIT seed database used by the app
+!assets/database/sit_seed.db
