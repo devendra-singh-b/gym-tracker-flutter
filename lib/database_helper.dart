@@ -27,27 +27,27 @@ class DatabaseHelper {
   final path = join(dbPath, filePath);
 
   const isSit = bool.fromEnvironment(
-    'SIT',
-    defaultValue: false,
+  'SIT',
+  defaultValue: false,
+);
+
+if (!await File(path).exists()) {
+  final seedAsset = isSit
+      ? 'assets/database/sit_seed.db'
+      : 'assets/database/prod_seed.db';
+
+  final data = await rootBundle.load(seedAsset);
+
+  final bytes = data.buffer.asUint8List(
+    data.offsetInBytes,
+    data.lengthInBytes,
   );
 
-  // For SIT, preload the database containing existing workout data
-  // only when the database does not already exist.
-  if (isSit && !await File(path).exists()) {
-    final data = await rootBundle.load(
-      'assets/database/sit_seed.db',
-    );
-
-    final bytes = data.buffer.asUint8List(
-      data.offsetInBytes,
-      data.lengthInBytes,
-    );
-
-    await File(path).writeAsBytes(
-      bytes,
-      flush: true,
-    );
-  }
+  await File(path).writeAsBytes(
+    bytes,
+    flush: true,
+  );
+}
 
   return await openDatabase(
     path,
