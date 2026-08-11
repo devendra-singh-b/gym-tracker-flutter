@@ -94,8 +94,10 @@ class _WorkoutHistoryScreenState
 
   subtitle: Text(
     isCardio
-        ? "${workout.duration} min • "
-          "Elevation ${workout.elevation}"
+    ? "${workout.duration} min • "
+      "${workout.distance} km • "
+      "${workout.calories} kcal • "
+      "Elevation ${workout.elevation}"
         : "Set ${workout.setNo} • "
           "${workout.weight} Kg • "
           "${workout.reps} reps",

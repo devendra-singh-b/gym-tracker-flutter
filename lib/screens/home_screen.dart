@@ -123,6 +123,8 @@ class _HomeScreenState extends State<HomeScreen> {
         (item['duration'] as num?)?.toDouble(),
     elevation:
         (item['elevation'] as num?)?.toDouble(),
+    distance: (item['distance'] as num?)?.toDouble(),
+    calories: (item['calories'] as num?)?.toDouble(),
 
     bodyArea:
         item['bodyArea'] as String?,
@@ -169,6 +171,18 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return minutes;
   }
+
+  double get totalCardioDistance {
+  return workouts
+      .where((w) => w.duration != null)
+      .fold(0, (sum, w) => sum + (w.distance ?? 0));
+}
+
+double get totalCardioCalories {
+  return workouts
+      .where((w) => w.duration != null)
+      .fold(0, (sum, w) => sum + (w.calories ?? 0));
+}
 
   Map<String, int> get bodyAreaCount {
   final Map<String, int> result = {};

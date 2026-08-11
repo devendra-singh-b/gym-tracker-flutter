@@ -18,6 +18,8 @@ class _AddWorkoutScreenState extends State<AddWorkoutScreen> {
   // Selected exercise
   Exercise? selectedExercise;
 
+  String selectedWeightUnit = 'Kg';
+
   // Multiple set controllers
   final List<TextEditingController> weightControllers = [];
   final List<TextEditingController> repsControllers = [];
@@ -28,6 +30,12 @@ class _AddWorkoutScreenState extends State<AddWorkoutScreen> {
 
   final TextEditingController elevationController =
       TextEditingController();
+
+  final TextEditingController distanceController =
+    TextEditingController();
+
+  final TextEditingController caloriesController =
+    TextEditingController();
 
   @override
   void initState() {
@@ -274,9 +282,11 @@ class _AddWorkoutScreenState extends State<AddWorkoutScreen> {
 
   setState(() {
     selectedExercise = result;
-
+    selectedWeightUnit = 'Kg';
     durationController.clear();
     elevationController.clear();
+    distanceController.clear();
+    caloriesController.clear();
 
     for (final controller in weightControllers) {
       controller.clear();
@@ -352,6 +362,8 @@ void removeSet(int index) {
 
     durationController.dispose();
     elevationController.dispose();
+    distanceController.dispose();
+    caloriesController.dispose();
 
     super.dispose();
   }
@@ -390,8 +402,17 @@ void showMessage(String message) {
         showMessage("Please enter elevation");
         return;
       }
+      if (distanceController.text.isEmpty) {
+        showMessage("Please enter distance");
+        return;
+      }
 
-      final workout = Workout(
+      if (caloriesController.text.isEmpty) {
+        showMessage("Please enter calories burned");
+        return;
+      }
+
+final workout = Workout(
         exercise: selectedExercise!.exercise,
         setNo: 0,
         weight: 0,
@@ -402,6 +423,10 @@ void showMessage(String message) {
             double.parse(durationController.text),
         elevation:
             double.parse(elevationController.text),
+        distance:
+            double.parse(distanceController.text),
+        calories:
+            double.parse(caloriesController.text),
       );
 
       await DatabaseHelper.instance
@@ -438,14 +463,22 @@ void showMessage(String message) {
           return;
         }
 
+        // Convert weight to KG before saving.
+        double weight = selectedExercise!.weightEnabled
+            ? double.parse(weightText)
+            : 0;
+
+        if (selectedWeightUnit == 'Lb') {
+          weight = weight * 0.45359237;
+          weight = double.parse(weight.toStringAsFixed(2));
+        }
+
         final workout = Workout(
           exercise: selectedExercise!.exercise,
 
           setNo: setNumber,
 
-          weight: selectedExercise!.weightEnabled
-              ? double.parse(weightText)
-              : 0,
+          weight: weight,
 
           reps: selectedExercise!.repsEnabled
               ? int.parse(repsText)
@@ -470,10 +503,13 @@ void showMessage(String message) {
     // Reset screen
     setState(() {
       selectedExercise = null;
+      selectedWeightUnit = 'Kg';
     });
 
     durationController.clear();
     elevationController.clear();
+    distanceController.clear();
+    caloriesController.clear();
 
     removeAllSets();
   }
@@ -542,6 +578,34 @@ void showMessage(String message) {
                 const SizedBox(height: 20),
 
                 TextField(
+  controller: distanceController,
+  keyboardType: const TextInputType.numberWithOptions(
+    decimal: true,
+  ),
+  decoration: const InputDecoration(
+    labelText: "Distance (Km)",
+    border: OutlineInputBorder(),
+  ),
+),
+
+const SizedBox(height: 20),
+
+TextField(
+  controller: caloriesController,
+  keyboardType: const TextInputType.numberWithOptions(
+    decimal: true,
+  ),
+  decoration: const InputDecoration(
+    labelText: "Calories Burned (kcal)",
+    border: OutlineInputBorder(),
+  ),
+),
+
+const SizedBox(height: 20),
+
+                
+
+                TextField(
                   controller: elevationController,
 
                   keyboardType:
@@ -550,7 +614,7 @@ void showMessage(String message) {
                   ),
 
                   decoration: const InputDecoration(
-                    labelText: "Elevation",
+                    labelText: "Elevation/Level",
                     border: OutlineInputBorder(),
                   ),
                 ),
@@ -561,6 +625,43 @@ void showMessage(String message) {
               // ==========================================
 
               if (!isCardio) ...[
+
+                Row(
+  children: [
+    const Text(
+      "Weight Unit:",
+      style: TextStyle(
+        fontWeight: FontWeight.bold,
+      ),
+    ),
+
+    const SizedBox(width: 12),
+
+    DropdownButton<String>(
+      value: selectedWeightUnit,
+      items: const [
+        DropdownMenuItem(
+          value: 'Kg',
+          child: Text('Kg'),
+        ),
+        DropdownMenuItem(
+          value: 'Lb',
+          child: Text('Lb'),
+        ),
+      ],
+      onChanged: (value) {
+        if (value == null) return;
+
+        setState(() {
+          selectedWeightUnit = value;
+        });
+      },
+    ),
+  ],
+),
+
+const SizedBox(height: 15),
+
                 for (int i = 0;
                     i < weightControllers.length;
                     i++) ...[
@@ -596,13 +697,10 @@ void showMessage(String message) {
                               decimal: true,
                             ),
 
-                            decoration:
-                                const InputDecoration(
-                              labelText:
-                                  "Weight (Kg)",
-                              border:
-                                  OutlineInputBorder(),
-                            ),
+                            decoration: InputDecoration(
+  labelText: "Weight ($selectedWeightUnit)",
+  border: const OutlineInputBorder(),
+),
                           ),
                         ),
 
@@ -670,6 +768,9 @@ IconButton(
                   ),
                 ),
               ],
+
+
+
 
               const SizedBox(height: 30),
 

@@ -51,7 +51,7 @@ if (!await File(path).exists()) {
 
   return await openDatabase(
     path,
-    version: 4,
+    version: 5,
     onCreate: _createDB,
     onUpgrade: _upgradeDB,
   );
@@ -119,6 +119,16 @@ if (!await File(path).exists()) {
     await db.delete('exercise_master');
     await _insertExercises(db);
   }
+
+  if (oldVersion < 5) {
+  await db.execute(
+    'ALTER TABLE workout ADD COLUMN distance REAL',
+  );
+
+  await db.execute(
+    'ALTER TABLE workout ADD COLUMN calories REAL',
+  );
+ }
 }
 
  Future _insertExercises(Database db) async {

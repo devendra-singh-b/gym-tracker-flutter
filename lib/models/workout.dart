@@ -7,6 +7,8 @@ class Workout {
   String workoutDate;
   double? duration;
   double? elevation;
+  double? distance;
+  double? calories;
   String? bodyArea;
 
   Workout({
@@ -18,6 +20,8 @@ class Workout {
     required this.workoutDate,
     this.duration,
     this.elevation,
+    this.distance,
+    this.calories,
     this.bodyArea,
   });
 
@@ -31,6 +35,8 @@ class Workout {
       'workoutDate': workoutDate,
       'duration': duration,
       'elevation': elevation,
+       'distance': distance,
+      'calories': calories,
     };
   }
 
@@ -45,8 +51,10 @@ class Workout {
       reps: map['reps'] ?? 0,
       workoutDate: map['workoutDate'] ?? '',
       duration: map['duration']?.toDouble(),
-      elevation: map['elevation']?.toDouble(),
-      bodyArea: map['bodyArea'],
+elevation: map['elevation']?.toDouble(),
+distance: map['distance']?.toDouble(),
+calories: map['calories']?.toDouble(),
+bodyArea: map['bodyArea'],
     );
   }
 }
