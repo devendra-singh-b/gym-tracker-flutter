@@ -168,32 +168,65 @@ class _AddWorkoutScreenState extends State<AddWorkoutScreen> {
                   // Body area filter
                   SizedBox(
                     height: 42,
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                      ),
-                      itemCount: bodyAreas.length,
-                      itemBuilder: (context, index) {
-                        final area = bodyAreas[index];
-                        final isSelected =
-                            selectedArea == area;
-
-                        return Padding(
+                    child: Stack(
+                      children: [
+                        ListView.builder(
+                          scrollDirection: Axis.horizontal,
                           padding: const EdgeInsets.only(
-                            right: 8,
+                            left: 16,
+                            right: 52,
                           ),
-                          child: ChoiceChip(
-                            label: Text(area),
-                            selected: isSelected,
-                            onSelected: (_) {
-                              setSheetState(() {
-                                selectedArea = area;
-                              });
-                            },
+                          itemCount: bodyAreas.length,
+                          itemBuilder: (context, index) {
+                            final area = bodyAreas[index];
+                            final isSelected =
+                                selectedArea == area;
+
+                            return Padding(
+                              padding: const EdgeInsets.only(
+                                right: 8,
+                              ),
+                              child: ChoiceChip(
+                                label: Text(area),
+                                selected: isSelected,
+                                onSelected: (_) {
+                                  setSheetState(() {
+                                    selectedArea = area;
+                                  });
+                                },
+                              ),
+                            );
+                          },
+                        ),
+
+                        // Indicates that more categories are available
+                        Positioned(
+                          right: 8,
+                          top: 3,
+                          child: IgnorePointer(
+                            child: Container(
+                              width: 34,
+                              height: 34,
+                              decoration: BoxDecoration(
+                                color: Theme.of(context)
+                                    .scaffoldBackgroundColor,
+                                shape: BoxShape.circle,
+                                boxShadow: const [
+                                  BoxShadow(
+                                    blurRadius: 4,
+                                    offset: Offset(-1, 0),
+                                    color: Colors.black12,
+                                  ),
+                                ],
+                              ),
+                              child: const Icon(
+                                Icons.arrow_forward_ios,
+                                size: 16,
+                              ),
+                            ),
                           ),
-                        );
-                      },
+                        ),
+                      ],
                     ),
                   ),
 

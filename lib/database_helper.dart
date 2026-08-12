@@ -67,7 +67,9 @@ if (!await File(path).exists()) {
   reps INTEGER,
   workoutDate TEXT,
   duration REAL,
-  elevation REAL
+  elevation REAL,
+  distance REAL,
+  calories REAL
 )
     ''');
 
@@ -121,15 +123,42 @@ if (!await File(path).exists()) {
   }
 
   if (oldVersion < 5) {
-  await db.execute(
-    'ALTER TABLE workout ADD COLUMN distance REAL',
-  );
+    await _addColumnIfMissing(
+      db,
+      'workout',
+      'distance',
+      'REAL',
+    );
 
-  await db.execute(
-    'ALTER TABLE workout ADD COLUMN calories REAL',
-  );
- }
+    await _addColumnIfMissing(
+      db,
+      'workout',
+      'calories',
+      'REAL',
+    );
+  }
 }
+
+  Future<void> _addColumnIfMissing(
+    Database db,
+    String table,
+    String column,
+    String type,
+  ) async {
+    final columns = await db.rawQuery(
+      'PRAGMA table_info($table)',
+    );
+
+    final exists = columns.any(
+      (row) => row['name'] == column,
+    );
+
+    if (!exists) {
+      await db.execute(
+        'ALTER TABLE $table ADD COLUMN $column $type',
+      );
+    }
+  }
 
  Future _insertExercises(Database db) async {
   final exercises = [
