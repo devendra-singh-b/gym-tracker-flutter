@@ -40,7 +40,7 @@ class DatabaseHelper {
 
     final db = await openDatabase(
       path,
-      version: 5,
+      version: 6,
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -221,6 +221,26 @@ class DatabaseHelper {
       'calories',
       'REAL',
     );
+  }
+
+  // Version 6: Add body profile and weight history.
+  if (oldVersion < 6) {
+    await db.execute('''
+      CREATE TABLE body_profile (
+        id INTEGER PRIMARY KEY,
+        height REAL,
+        heightUnit TEXT NOT NULL DEFAULT 'cm',
+        updatedDate TEXT
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE weight_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        weight REAL NOT NULL,
+        recordedDate TEXT NOT NULL
+      )
+    ''');
   }
 }
 
@@ -758,6 +778,115 @@ class DatabaseHelper {
     );
 
     return result.map((json) => Exercise.fromMap(json)).toList();
+  }
+
+  // ==================== BODY PROFILE ====================
+
+  // SAVE / UPDATE HEIGHT
+  Future<int> saveHeight(
+    double height, {
+    String unit = 'cm',
+  }) async {
+    final db = await instance.database;
+
+    final existing = await db.query(
+      'body_profile',
+      limit: 1,
+    );
+
+    final data = <String, dynamic>{
+      'height': height,
+      'heightUnit': unit,
+      'updatedDate': DateTime.now().toIso8601String(),
+    };
+
+    if (existing.isEmpty) {
+      return await db.insert(
+        'body_profile',
+        {
+          'id': 1,
+          ...data,
+        },
+      );
+    }
+
+    return await db.update(
+      'body_profile',
+      data,
+      where: 'id = ?',
+      whereArgs: [existing.first['id']],
+    );
+  }
+
+  // GET BODY PROFILE
+  Future<Map<String, dynamic>?> getBodyProfile() async {
+    final db = await instance.database;
+
+    final result = await db.query(
+      'body_profile',
+      limit: 1,
+    );
+
+    if (result.isEmpty) {
+      return null;
+    }
+
+    return result.first;
+  }
+
+  // ADD WEIGHT ENTRY
+  Future<int> addWeight(
+    double weight, {
+    DateTime? recordedDate,
+  }) async {
+    final db = await instance.database;
+
+    return await db.insert(
+      'weight_history',
+      {
+        'weight': weight,
+        'recordedDate':
+            (recordedDate ?? DateTime.now()).toIso8601String(),
+      },
+    );
+  }
+
+  // GET WEIGHT HISTORY
+  Future<List<Map<String, dynamic>>> getWeightHistory() async {
+    final db = await instance.database;
+
+    return await db.query(
+      'weight_history',
+      orderBy: 'recordedDate DESC, id DESC',
+    );
+  }
+
+  // GET LATEST WEIGHT
+  Future<Map<String, dynamic>?> getLatestWeight() async {
+    final db = await instance.database;
+
+    final result = await db.query(
+      'weight_history',
+      orderBy: 'recordedDate DESC, id DESC',
+      limit: 1,
+    );
+
+    if (result.isEmpty) {
+      return null;
+    }
+
+    return result.first;
+  }
+
+  // DELETE WEIGHT ENTRY
+  Future<int> deleteWeight(int id) async {
+    final db = await instance.database;
+
+    return await db.delete(
+      'weight_history',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
   }
 
   // DELETE WORKOUT

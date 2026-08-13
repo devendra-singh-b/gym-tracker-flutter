@@ -1,47 +1,40 @@
 import 'package:flutter/material.dart';
-
 import '../database_helper.dart';
 import '../models/workout.dart';
 import 'add_workout_screen.dart';
 import 'workout_history_screen.dart';
+import 'body_profile_screen.dart';
 import 'muscle_detail_screen.dart';
 import '../widgets/body_map.dart';
 
-
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
-
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
-
 class _HomeScreenState extends State<HomeScreen> {
   // 0 = Daily
   // 1 = Weekly
   // 2 = Monthly
   // 3 = Yearly
   int selectedPeriod = 0;
-
   List<Workout> workouts = [];
-
   bool isLoading = true;
-
+  double? _heightCm;
+double? _currentWeight;
   @override
-  void initState() {
-    super.initState();
-    loadStats();
-  }
-
+void initState() {
+  super.initState();
+  loadStats();
+  loadBodyMetrics();
+}
   Future<void> loadStats() async {
     setState(() {
       isLoading = true;
     });
-
     final now = DateTime.now();
-
     late DateTime startDate;
     late DateTime endDate;
-
     if (selectedPeriod == 0) {
       // DAILY
       startDate = DateTime(
@@ -49,7 +42,6 @@ class _HomeScreenState extends State<HomeScreen> {
         now.month,
         now.day,
       );
-
       endDate = startDate.add(
         const Duration(days: 1),
       );
@@ -60,15 +52,12 @@ class _HomeScreenState extends State<HomeScreen> {
         now.month,
         now.day,
       );
-
       // Monday = 1, Sunday = 7
       final daysFromMonday =
           today.weekday - DateTime.monday;
-
       startDate = today.subtract(
         Duration(days: daysFromMonday),
       );
-
       endDate = startDate.add(
         const Duration(days: 7),
       );
@@ -79,7 +68,6 @@ class _HomeScreenState extends State<HomeScreen> {
         now.month,
         1,
       );
-
       endDate = DateTime(
         now.year,
         now.month + 1,
@@ -92,22 +80,18 @@ class _HomeScreenState extends State<HomeScreen> {
         1,
         1,
       );
-
       endDate = DateTime(
         now.year + 1,
         1,
         1,
       );
     }
-
     final data =
         await DatabaseHelper.instance.getWorkoutStats(
       startDate,
       endDate,
     );
-
     if (!mounted) return;
-
     setState(() {
       workouts = data.map((item) {
   return Workout(
@@ -125,15 +109,72 @@ class _HomeScreenState extends State<HomeScreen> {
         (item['elevation'] as num?)?.toDouble(),
     distance: (item['distance'] as num?)?.toDouble(),
     calories: (item['calories'] as num?)?.toDouble(),
-
     bodyArea:
         item['bodyArea'] as String?,
   );
 }).toList();
-
       isLoading = false;
     });
   }
+
+  Future<void> loadBodyMetrics() async {
+  final profile =
+      await DatabaseHelper.instance.getBodyProfile();
+
+  final latestWeight =
+      await DatabaseHelper.instance.getLatestWeight();
+
+  if (!mounted) return;
+
+  setState(() {
+    if (profile != null && profile['height'] is num) {
+      _heightCm =
+          (profile['height'] as num).toDouble();
+    } else {
+      _heightCm = null;
+    }
+
+    if (latestWeight != null &&
+        latestWeight['weight'] is num) {
+      _currentWeight =
+          (latestWeight['weight'] as num).toDouble();
+    } else {
+      _currentWeight = null;
+    }
+  });
+}
+
+double? get bmi {
+  if (_heightCm == null ||
+      _currentWeight == null ||
+      _heightCm! <= 0 ||
+      _currentWeight! <= 0) {
+    return null;
+  }
+
+  final heightInMetres = _heightCm! / 100;
+
+  return _currentWeight! /
+      (heightInMetres * heightInMetres);
+}
+
+String get bmiLabel {
+  final value = bmi;
+
+  if (value == null) {
+    return "Set height & weight";
+  }
+
+  if (value < 18.5) {
+    return "Underweight";
+  } else if (value < 25) {
+    return "Normal";
+  } else if (value < 30) {
+    return "Overweight";
+  } else {
+    return "Obese";
+  }
+}
 
   int get exerciseCount {
     return workouts
@@ -141,65 +182,50 @@ class _HomeScreenState extends State<HomeScreen> {
         .toSet()
         .length;
   }
-
   int get totalSets {
     return workouts
         .where((workout) => workout.duration == null)
         .length;
   }
-
   double get totalVolume {
     double volume = 0;
-
     for (final workout in workouts) {
       if (workout.duration == null) {
         volume += workout.weight * workout.reps;
       }
     }
-
     return volume;
   }
-
   double get totalCardioMinutes {
     double minutes = 0;
-
     for (final workout in workouts) {
       if (workout.duration != null) {
         minutes += workout.duration!;
       }
     }
-
     return minutes;
   }
-
   double get totalCardioDistance {
   return workouts
       .where((w) => w.duration != null)
       .fold(0, (sum, w) => sum + (w.distance ?? 0));
 }
-
 double get totalCardioCalories {
   return workouts
       .where((w) => w.duration != null)
       .fold(0, (sum, w) => sum + (w.calories ?? 0));
 }
-
   Map<String, int> get bodyAreaCount {
   final Map<String, int> result = {};
-
   for (final workout in workouts) {
     final bodyArea = workout.bodyArea;
-
     if (bodyArea == null || bodyArea.isEmpty) {
       continue;
     }
-
     result[bodyArea] = (result[bodyArea] ?? 0) + 1;
   }
-
   return result;
 }
-
   String get periodTitle {
     switch (selectedPeriod) {
       case 0:
@@ -214,20 +240,19 @@ double get totalCardioCalories {
         return "Summary";
     }
   }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       drawer: buildDrawer(),
-
       appBar: AppBar(
         title: const Text("Welcome Devendra"),
         centerTitle: true,
       ),
-
       body: RefreshIndicator(
-        onRefresh: loadStats,
-
+        onRefresh: () async {
+          await loadStats();
+          await loadBodyMetrics();
+        },
         child: isLoading
             ? const Center(
                 child: CircularProgressIndicator(),
@@ -235,23 +260,18 @@ double get totalCardioCalories {
             : SingleChildScrollView(
                 physics:
                     const AlwaysScrollableScrollPhysics(),
-
                 padding: const EdgeInsets.all(16),
-
                 child: Column(
                   crossAxisAlignment:
                       CrossAxisAlignment.start,
-
                   children: [
                     const SizedBox(height: 5),
-
                     // ==================================
                     // PERIOD TABS
                     // ==================================
-
                     SizedBox(
                       width: double.infinity,
-
+                      height: 48,
                       child: SegmentedButton<int>(
                         segments: const [
   ButtonSegment<int>(
@@ -283,29 +303,23 @@ double get totalCardioCalories {
     ),
   ),
 ],
-
                         selected: {
                           selectedPeriod,
                         },
-
                         onSelectionChanged:
                             (Set<int> value) {
                           setState(() {
                             selectedPeriod =
                                 value.first;
                           });
-
                           loadStats();
                         },
                       ),
                     ),
-
                     const SizedBox(height: 25),
-
                     // ==================================
                     // SUMMARY
                     // ==================================
-
                     Text(
                       periodTitle,
                       style: const TextStyle(
@@ -313,13 +327,10 @@ double get totalCardioCalories {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-
                     const SizedBox(height: 15),
-
                     // ==================================
                     // STAT CARDS
                     // ==================================
-
                     Row(
                       children: [
                         Expanded(
@@ -329,33 +340,31 @@ double get totalCardioCalories {
                             "$exerciseCount",
                           ),
                         ),
-
                         const SizedBox(width: 10),
-
                         Expanded(
-                          child: buildStatCard(
-                            Icons.repeat,
-                            "Sets",
-                            "$totalSets",
-                          ),
-                        ),
+  child: buildStatCard(
+    Icons.monitor_heart,
+    "BMI",
+    bmi == null
+        ? "--"
+        : bmi!.toStringAsFixed(1),
+  ),
+),
                       ],
                     ),
-
                     const SizedBox(height: 10),
-
                     Row(
                       children: [
                         Expanded(
                           child: buildStatCard(
-                            Icons.monitor_weight,
-                            "Volume",
-                            "${totalVolume.toStringAsFixed(0)} Kg",
+                            Icons.monitor_heart,
+                            "BMI",
+                            bmi == null
+                                ? "--"
+                                : bmi!.toStringAsFixed(1),
                           ),
                         ),
-
                         const SizedBox(width: 10),
-
                         Expanded(
                           child: buildStatCard(
                             Icons.timer,
@@ -365,24 +374,31 @@ double get totalCardioCalories {
                         ),
                       ],
                     ),
+                    if (bmi != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Text(
+                          "BMI: ${bmi!.toStringAsFixed(1)} • $bmiLabel",
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
 
                     const SizedBox(height: 30),
 // ==================================
 // BODY MAP
 // ==================================
-
 BodyMap(
   muscleActivity: bodyAreaCount,
   workouts: workouts,
 ),
 const SizedBox(height: 25),
-
                     
-
                     // ==================================
                     // BODY AREA SUMMARY
                     // ==================================
-
                     const Text(
                       "Muscle Groups",
                       style: TextStyle(
@@ -390,9 +406,7 @@ const SizedBox(height: 25),
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-
                     const SizedBox(height: 15),
-
                     if (bodyAreaCount.isEmpty)
                       const Card(
                         child: Padding(
@@ -412,19 +426,16 @@ const SizedBox(height: 25),
                                 const EdgeInsets.only(
                               bottom: 8,
                             ),
-
                             child: ListTile(
   leading: const Icon(
     Icons.accessibility_new,
   ),
-
   title: Text(
     entry.key,
     style: const TextStyle(
       fontWeight: FontWeight.bold,
     ),
   ),
-
   trailing: Row(
     mainAxisSize: MainAxisSize.min,
     children: [
@@ -435,20 +446,16 @@ const SizedBox(height: 25),
           fontWeight: FontWeight.bold,
         ),
       ),
-
       const SizedBox(width: 8),
-
       const Icon(
         Icons.arrow_forward_ios,
         size: 16,
       ),
     ],
   ),
-
   subtitle: const Text(
     "Tap to view details",
   ),
-
   onTap: () {
     Navigator.push(
       context,
@@ -465,32 +472,25 @@ const SizedBox(height: 25),
                           );
                         },
                       ),
-
                     const SizedBox(height: 25),
-
                     // ==================================
                     // WORKOUT COUNT
                     // ==================================
-
                     Card(
                       child: ListTile(
                         leading: const Icon(
                           Icons.history,
                         ),
-
                         title: Text(
                           "${workouts.length} workout record(s)",
                         ),
-
                         subtitle: const Text(
                           "Data loaded from SQLite",
                         ),
-
                         trailing: IconButton(
                           icon: const Icon(
                             Icons.arrow_forward,
                           ),
-
                           onPressed: () {
                             Navigator.push(
                               context,
@@ -509,7 +509,6 @@ const SizedBox(height: 25),
       ),
     );
   }
-
   Widget buildStatCard(
     IconData icon,
     String title,
@@ -518,16 +517,13 @@ const SizedBox(height: 25),
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
-
         child: Column(
           children: [
             Icon(
               icon,
               size: 28,
             ),
-
             const SizedBox(height: 8),
-
             Text(
               value,
               style: const TextStyle(
@@ -535,21 +531,17 @@ const SizedBox(height: 25),
                 fontWeight: FontWeight.bold,
               ),
             ),
-
             const SizedBox(height: 4),
-
             Text(title),
           ],
         ),
       ),
     );
   }
-
   Drawer buildDrawer() {
     return Drawer(
       child: ListView(
         padding: EdgeInsets.zero,
-
         children: [
           const UserAccountsDrawerHeader(
             accountName: Text(
@@ -558,11 +550,9 @@ const SizedBox(height: 25),
                 fontSize: 20,
               ),
             ),
-
             accountEmail: Text(
               "Gym Tracker",
             ),
-
             currentAccountPicture:
                 CircleAvatar(
               child: Icon(
@@ -571,33 +561,26 @@ const SizedBox(height: 25),
               ),
             ),
           ),
-
           ListTile(
             leading: const Icon(
               Icons.home,
             ),
-
             title: const Text(
               "Dashboard",
             ),
-
             onTap: () {
               Navigator.pop(context);
             },
           ),
-
           ListTile(
             leading: const Icon(
               Icons.add_circle,
             ),
-
             title: const Text(
               "Add Workout",
             ),
-
             onTap: () {
               Navigator.pop(context);
-
               Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -607,19 +590,15 @@ const SizedBox(height: 25),
               );
             },
           ),
-
           ListTile(
             leading: const Icon(
               Icons.history,
             ),
-
             title: const Text(
               "Workout History",
             ),
-
             onTap: () {
               Navigator.pop(context);
-
               Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -631,28 +610,41 @@ const SizedBox(height: 25),
           ),
 
           ListTile(
+  leading: const Icon(
+    Icons.person_outline,
+  ),
+  title: const Text(
+    "Body Profile",
+  ),
+  onTap: () {
+    Navigator.pop(context);
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) =>
+            const BodyProfileScreen(),
+      ),
+    );
+  },
+),
+          ListTile(
             leading: const Icon(
               Icons.bar_chart,
             ),
-
             title: const Text(
               "Progress",
             ),
-
             onTap: () {},
           ),
-
           const Divider(),
-
           ListTile(
             leading: const Icon(
               Icons.settings,
             ),
-
             title: const Text(
               "Settings",
             ),
-
             onTap: () {},
           ),
         ],
