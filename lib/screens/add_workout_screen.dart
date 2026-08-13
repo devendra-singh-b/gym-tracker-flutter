@@ -48,18 +48,25 @@ class _AddWorkoutScreenState extends State<AddWorkoutScreen> {
   }
 
   Future<void> loadExercises() async {
-    final data = await DatabaseHelper.instance.getAllExercises();
+  final data = await DatabaseHelper.instance.getAllExercises();
 
-    if (!mounted) return;
+  if (!mounted) return;
 
-    setState(() {
-      exercises = data;
-    });
-  }
+  setState(() {
+    exercises = data;
+  });
+}
 
   Future<void> _showExercisePicker() async {
+    
   String searchText = '';
   String selectedArea = 'All';
+
+   ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(
+      content: Text('NEW PICKER CODE RUNNING'),
+    ),
+  );
 
   final bodyAreas = <String>[
     'All',
