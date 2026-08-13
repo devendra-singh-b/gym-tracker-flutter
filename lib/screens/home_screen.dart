@@ -267,55 +267,65 @@ double get totalCardioCalories {
                   children: [
                     const SizedBox(height: 5),
                     // ==================================
-                    // PERIOD TABS
-                    // ==================================
-                    SizedBox(
-                      width: double.infinity,
-                      height: 48,
-                      child: SegmentedButton<int>(
-                        segments: const [
-  ButtonSegment<int>(
-    value: 0,
-    label: FittedBox(
-      fit: BoxFit.scaleDown,
-      child: Text("Daily"),
+// PERIOD TABS
+// ==================================
+SizedBox(
+  width: double.infinity,
+  height: 48,
+  child: SegmentedButton<int>(
+    style: ButtonStyle(
+      visualDensity: VisualDensity.compact,
+      padding: WidgetStateProperty.all(
+        const EdgeInsets.symmetric(horizontal: 6),
+      ),
+      minimumSize: WidgetStateProperty.all(
+        const Size(0, 48),
+      ),
+      maximumSize: WidgetStateProperty.all(
+        const Size(double.infinity, 48),
+      ),
     ),
+    segments: const [
+      ButtonSegment<int>(
+        value: 0,
+        label: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text("Daily"),
+        ),
+      ),
+      ButtonSegment<int>(
+        value: 1,
+        label: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text("Weekly"),
+        ),
+      ),
+      ButtonSegment<int>(
+        value: 2,
+        label: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text("Monthly"),
+        ),
+      ),
+      ButtonSegment<int>(
+        value: 3,
+        label: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text("Yearly"),
+        ),
+      ),
+    ],
+    selected: {
+      selectedPeriod,
+    },
+    onSelectionChanged: (Set<int> value) {
+      setState(() {
+        selectedPeriod = value.first;
+      });
+      loadStats();
+    },
   ),
-  ButtonSegment<int>(
-    value: 1,
-    label: FittedBox(
-      fit: BoxFit.scaleDown,
-      child: Text("Weekly"),
-    ),
-  ),
-  ButtonSegment<int>(
-    value: 2,
-    label: FittedBox(
-      fit: BoxFit.scaleDown,
-      child: Text("Monthly"),
-    ),
-  ),
-  ButtonSegment<int>(
-    value: 3,
-    label: FittedBox(
-      fit: BoxFit.scaleDown,
-      child: Text("Yearly"),
-    ),
-  ),
-],
-                        selected: {
-                          selectedPeriod,
-                        },
-                        onSelectionChanged:
-                            (Set<int> value) {
-                          setState(() {
-                            selectedPeriod =
-                                value.first;
-                          });
-                          loadStats();
-                        },
-                      ),
-                    ),
+),
                     const SizedBox(height: 25),
                     // ==================================
                     // SUMMARY
@@ -329,63 +339,63 @@ double get totalCardioCalories {
                     ),
                     const SizedBox(height: 15),
                     // ==================================
-                    // STAT CARDS
-                    // ==================================
-                    Row(
-                      children: [
-                        Expanded(
-                          child: buildStatCard(
-                            Icons.fitness_center,
-                            "Exercises",
-                            "$exerciseCount",
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-  child: buildStatCard(
-    Icons.monitor_heart,
-    "BMI",
-    bmi == null
-        ? "--"
-        : bmi!.toStringAsFixed(1),
-  ),
+// STAT CARDS
+// ==================================
+Row(
+  children: [
+    Expanded(
+      child: buildStatCard(
+        Icons.fitness_center,
+        "Exercises",
+        "$exerciseCount",
+      ),
+    ),
+    const SizedBox(width: 10),
+    Expanded(
+      child: buildStatCard(
+        Icons.monitor_heart,
+        "BMI",
+        bmi == null
+            ? "--"
+            : bmi!.toStringAsFixed(1),
+      ),
+    ),
+  ],
 ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: buildStatCard(
-                            Icons.monitor_heart,
-                            "BMI",
-                            bmi == null
-                                ? "--"
-                                : bmi!.toStringAsFixed(1),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: buildStatCard(
-                            Icons.timer,
-                            "Cardio",
-                            "${totalCardioMinutes.toStringAsFixed(0)} min",
-                          ),
-                        ),
-                      ],
-                    ),
-                    if (bmi != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 8),
-                        child: Text(
-                          "BMI: ${bmi!.toStringAsFixed(1)} • $bmiLabel",
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
 
+const SizedBox(height: 10),
+
+Row(
+  children: [
+    Expanded(
+      child: buildStatCard(
+        Icons.repeat,
+        "Sets",
+        "$totalSets",
+      ),
+    ),
+    const SizedBox(width: 10),
+    Expanded(
+      child: buildStatCard(
+        Icons.timer,
+        "Cardio",
+        "${totalCardioMinutes.toStringAsFixed(0)} min",
+      ),
+    ),
+  ],
+),
+
+if (bmi != null)
+  Padding(
+    padding: const EdgeInsets.only(top: 8),
+    child: Text(
+      "BMI: ${bmi!.toStringAsFixed(1)} • $bmiLabel",
+      style: const TextStyle(
+        fontSize: 14,
+        fontWeight: FontWeight.w500,
+      ),
+    ),
+  ),
                     const SizedBox(height: 30),
 // ==================================
 // BODY MAP
@@ -628,15 +638,17 @@ const SizedBox(height: 25),
     );
   },
 ),
-          ListTile(
-            leading: const Icon(
-              Icons.bar_chart,
-            ),
-            title: const Text(
-              "Progress",
-            ),
-            onTap: () {},
-          ),
+        ListTile(
+  leading: const Icon(
+    Icons.bar_chart,
+  ),
+  title: const Text(
+    "Progress",
+  ),
+  onTap: () {
+    Navigator.pop(context);
+  },
+),
           const Divider(),
           ListTile(
             leading: const Icon(

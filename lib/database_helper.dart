@@ -30,43 +30,54 @@ class DatabaseHelper {
   }
 
   Future<Database> _initDB(String filePath) async {
-    final dbPath = await getDatabasesPath();
-    final path = join(dbPath, filePath);
+  final dbPath = await getDatabasesPath();
+  final path = join(dbPath, filePath);
 
-    const isSit = bool.fromEnvironment(
-      'SIT',
-      defaultValue: false,
+  const isSit = bool.fromEnvironment(
+    'SIT',
+    defaultValue: false,
+  );
+
+  final db = await openDatabase(
+    path,
+    version: 7,
+    onCreate: _createDB,
+    onUpgrade: _upgradeDB,
+  );
+
+  // Make sure required tables exist for all databases,
+  // including restored/seed databases.
+  await _ensureRequiredTables(db);
+
+  // Bootstrap seed data only when exercise master is empty.
+  final exerciseCount = Sqflite.firstIntValue(
+        await db.rawQuery(
+          'SELECT COUNT(*) FROM exercise_master',
+        ),
+      ) ??
+      0;
+
+  if (exerciseCount == 0) {
+    await _importSeedData(
+      db,
+      dbPath,
+      isSit,
     );
-
-    final db = await openDatabase(
-      path,
-      version: 6,
-      onCreate: _createDB,
-      onUpgrade: _upgradeDB,
-    );
-
-    // Bootstrap the seed data only when the local database does not yet
-    // contain exercise master data.
-    //
-    // We deliberately check the CONTENT of the database instead of relying
-    // on the physical file's existence. Android can restore an application's
-    // database during reinstall/restore. In that case the DB file exists,
-    // but it may still be an uninitialized/empty database. A file-exists
-    // check would incorrectly skip the seed import.
-    final exerciseCount = Sqflite.firstIntValue(
-          await db.rawQuery(
-            'SELECT COUNT(*) FROM exercise_master',
-          ),
-        ) ??
-        0;
-
-    if (exerciseCount == 0) {
-      await _importSeedData(db, dbPath, isSit);
-    }
-
-    return db;
   }
 
+  // // Temporary diagnostic log.
+  // final verifyExercises = await db.rawQuery(
+  //   'SELECT COUNT(*) AS c FROM exercise_master',
+  // );
+
+  // final verifyWorkouts = await db.rawQuery(
+  //   'SELECT COUNT(*) AS c FROM workout',
+  // );
+
+  
+
+  return db;
+}
   Future<void> _importSeedData(
     Database db,
     String dbPath,
@@ -116,6 +127,8 @@ class DatabaseHelper {
           orderBy: 'id ASC',
         );
 
+    
+
         await db.transaction((txn) async {
           for (final row in exerciseRows) {
             await txn.insert(
@@ -133,6 +146,16 @@ class DatabaseHelper {
             );
           }
         });
+
+        // final finalExercises = await db.rawQuery(
+        //   'SELECT COUNT(*) AS c FROM exercise_master',
+        // );
+
+        // final finalWorkouts = await db.rawQuery(
+        //   'SELECT COUNT(*) AS c FROM workout',
+        // );
+
+      
       } finally {
         await seedDb.close();
       }
@@ -142,6 +165,26 @@ class DatabaseHelper {
       }
     }
   }
+
+Future<void> _ensureRequiredTables(Database db) async {
+  await db.execute('''
+    CREATE TABLE IF NOT EXISTS body_profile (
+      id INTEGER PRIMARY KEY,
+      height REAL,
+      heightUnit TEXT NOT NULL DEFAULT 'cm',
+      updatedDate TEXT
+    )
+  ''');
+
+  await db.execute('''
+    CREATE TABLE IF NOT EXISTS weight_history (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      weight REAL NOT NULL,
+      recordedDate TEXT NOT NULL
+    )
+  ''');
+}
+
 
   Future<void> _createDB(Database db, int version) async {
     await db.execute('''
@@ -241,6 +284,30 @@ class DatabaseHelper {
         recordedDate TEXT NOT NULL
       )
     ''');
+  }
+
+  // Version 7: Temporary non-destructive migration verification.
+  // This table is only used to prove that onUpgrade runs successfully.
+  if (oldVersion < 7) {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS db_migration_test (
+        id INTEGER PRIMARY KEY,
+        migratedFrom INTEGER NOT NULL,
+        migratedTo INTEGER NOT NULL,
+        migratedDate TEXT NOT NULL
+      )
+    ''');
+
+    await db.insert(
+      'db_migration_test',
+      {
+        'id': 1,
+        'migratedFrom': oldVersion,
+        'migratedTo': 7,
+        'migratedDate': DateTime.now().toIso8601String(),
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
   }
 }
 
