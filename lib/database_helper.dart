@@ -27,32 +27,48 @@ class DatabaseHelper {
   final path = join(dbPath, filePath);
 
   const isSit = bool.fromEnvironment(
-  'SIT',
-  defaultValue: false,
-);
-
-if (!await File(path).exists()) {
-  final seedAsset = isSit
-      ? 'assets/database/sit_seed.db'
-      : 'assets/database/prod_seed.db';
-
-  final data = await rootBundle.load(seedAsset);
-
-  final bytes = data.buffer.asUint8List(
-    data.offsetInBytes,
-    data.lengthInBytes,
+    'SIT',
+    defaultValue: false,
   );
 
-  await File(path).writeAsBytes(
-    bytes,
-    flush: true,
-  );
-}
+  final dbFile = File(path);
+  final isNewDatabase = !await dbFile.exists();
+
+  if (isNewDatabase) {
+    final seedAsset = isSit
+        ? 'assets/database/sit_seed.db'
+        : 'assets/database/prod_seed.db';
+
+    final data = await rootBundle.load(seedAsset);
+
+    final bytes = data.buffer.asUint8List(
+      data.offsetInBytes,
+      data.lengthInBytes,
+    );
+
+    await dbFile.writeAsBytes(
+      bytes,
+      flush: true,
+    );
+  }
 
   return await openDatabase(
     path,
     version: 5,
-    onCreate: _createDB,
+    onCreate: (db, version) async {
+      // Seed DB already contains the tables/data.
+      // Do not recreate them on a fresh install.
+      final tables = await db.rawQuery(
+        "SELECT name FROM sqlite_master "
+        "WHERE type = 'table' AND name = 'workout'",
+      );
+
+      if (tables.isNotEmpty) {
+        return;
+      }
+
+      await _createDB(db, version);
+    },
     onUpgrade: _upgradeDB,
   );
 }
