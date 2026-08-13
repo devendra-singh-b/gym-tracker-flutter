@@ -643,6 +643,8 @@ if (!await File(path).exists()) {
       w.reps,
       w.duration,
       w.elevation,
+      w.distance,
+      w.calories,
       w.workoutDate,
       e.bodyArea
     FROM workout w
