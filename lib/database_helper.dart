@@ -11,67 +11,137 @@ class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._init();
 
   static Database? _database;
+  static Future<Database>? _databaseFuture;
 
   DatabaseHelper._init();
 
   Future<Database> get database async {
     if (_database != null) return _database!;
 
-    _database = await _initDB('gym_tracker.db');
+    _databaseFuture ??= _initDB('gym_tracker.db');
 
-    return _database!;
+    try {
+      _database = await _databaseFuture!;
+      return _database!;
+    } catch (_) {
+      _databaseFuture = null;
+      rethrow;
+    }
   }
 
   Future<Database> _initDB(String filePath) async {
-  final dbPath = await getDatabasesPath();
-  final path = join(dbPath, filePath);
+    final dbPath = await getDatabasesPath();
+    final path = join(dbPath, filePath);
 
-  const isSit = bool.fromEnvironment(
-    'SIT',
-    defaultValue: false,
-  );
+    const isSit = bool.fromEnvironment(
+      'SIT',
+      defaultValue: false,
+    );
 
-  final dbFile = File(path);
-  final isNewDatabase = !await dbFile.exists();
+    final db = await openDatabase(
+      path,
+      version: 5,
+      onCreate: _createDB,
+      onUpgrade: _upgradeDB,
+    );
 
-  if (isNewDatabase) {
+    // Bootstrap the seed data only when the local database does not yet
+    // contain exercise master data.
+    //
+    // We deliberately check the CONTENT of the database instead of relying
+    // on the physical file's existence. Android can restore an application's
+    // database during reinstall/restore. In that case the DB file exists,
+    // but it may still be an uninitialized/empty database. A file-exists
+    // check would incorrectly skip the seed import.
+    final exerciseCount = Sqflite.firstIntValue(
+          await db.rawQuery(
+            'SELECT COUNT(*) FROM exercise_master',
+          ),
+        ) ??
+        0;
+
+    if (exerciseCount == 0) {
+      await _importSeedData(db, dbPath, isSit);
+    }
+
+    return db;
+  }
+
+  Future<void> _importSeedData(
+    Database db,
+    String dbPath,
+    bool isSit,
+  ) async {
     final seedAsset = isSit
         ? 'assets/database/sit_seed.db'
         : 'assets/database/prod_seed.db';
 
-    final data = await rootBundle.load(seedAsset);
-
-    final bytes = data.buffer.asUint8List(
-      data.offsetInBytes,
-      data.lengthInBytes,
+    final seedPath = join(
+      dbPath,
+      isSit ? 'gym_tracker_sit_seed.db' : 'gym_tracker_prod_seed.db',
     );
 
-    await dbFile.writeAsBytes(
-      bytes,
-      flush: true,
-    );
-  }
+    final seedFile = File(seedPath);
 
-  return await openDatabase(
-    path,
-    version: 5,
-    onCreate: (db, version) async {
-      // Seed DB already contains the tables/data.
-      // Do not recreate them on a fresh install.
-      final tables = await db.rawQuery(
-        "SELECT name FROM sqlite_master "
-        "WHERE type = 'table' AND name = 'workout'",
-      );
-
-      if (tables.isNotEmpty) {
-        return;
+    try {
+      if (await seedFile.exists()) {
+        await seedFile.delete();
       }
 
-      await _createDB(db, version);
-    },
-    onUpgrade: _upgradeDB,
-  );
-}
+      final data = await rootBundle.load(seedAsset);
+
+      final bytes = data.buffer.asUint8List(
+        data.offsetInBytes,
+        data.lengthInBytes,
+      );
+
+      await seedFile.writeAsBytes(
+        bytes,
+        flush: true,
+      );
+
+      final seedDb = await openDatabase(
+        seedPath,
+        readOnly: true,
+      );
+
+      try {
+        final exerciseRows = await seedDb.query(
+          'exercise_master',
+          orderBy: 'id ASC',
+        );
+
+        final workoutRows = await seedDb.query(
+          'workout',
+          orderBy: 'id ASC',
+        );
+
+        await db.transaction((txn) async {
+          for (final row in exerciseRows) {
+            await txn.insert(
+              'exercise_master',
+              Map<String, dynamic>.from(row),
+              conflictAlgorithm: ConflictAlgorithm.replace,
+            );
+          }
+
+          for (final row in workoutRows) {
+            await txn.insert(
+              'workout',
+              Map<String, dynamic>.from(row),
+              conflictAlgorithm: ConflictAlgorithm.replace,
+            );
+          }
+        });
+      } finally {
+        await seedDb.close();
+      }
+    } finally {
+      if (await seedFile.exists()) {
+        await seedFile.delete();
+      }
+    }
+  }
 
   Future<void> _createDB(Database db, int version) async {
     await db.execute('''
@@ -100,7 +170,6 @@ class DatabaseHelper {
       )
     ''');
 
-    await _insertExercises(db);
   }
 
   Future<void> _upgradeDB(

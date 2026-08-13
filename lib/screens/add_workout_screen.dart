@@ -62,12 +62,6 @@ class _AddWorkoutScreenState extends State<AddWorkoutScreen> {
   String searchText = '';
   String selectedArea = 'All';
 
-   ScaffoldMessenger.of(context).showSnackBar(
-    const SnackBar(
-      content: Text('NEW PICKER CODE RUNNING'),
-    ),
-  );
-
   final bodyAreas = <String>[
     'All',
     'Chest',
