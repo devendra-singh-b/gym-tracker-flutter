@@ -25,14 +25,22 @@ class MuscleDetailScreen extends StatelessWidget {
         .toSet()
         .toList();
 
+    // Plank is duration-based but it is NOT cardio.
+    // Cardio exercises use duration in minutes.
     final totalSets = areaWorkouts
-        .where((workout) => workout.duration == null)
+        .where(
+          (workout) =>
+              workout.duration == null ||
+              workout.exercise == 'Plank',
+        )
         .length;
 
     double totalVolume = 0;
 
     for (final workout in areaWorkouts) {
-      if (workout.duration == null) {
+      // Plank has no weight-based volume.
+      if (workout.duration == null &&
+          workout.exercise != 'Plank') {
         totalVolume +=
             workout.weight * workout.reps;
       }
@@ -43,14 +51,11 @@ class MuscleDetailScreen extends StatelessWidget {
         title: Text(bodyArea),
         centerTitle: true,
       ),
-
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
-
         child: Column(
           crossAxisAlignment:
               CrossAxisAlignment.start,
-
           children: [
             // ==================================
             // SUMMARY
@@ -65,9 +70,7 @@ class MuscleDetailScreen extends StatelessWidget {
                     Icons.fitness_center,
                   ),
                 ),
-
                 const SizedBox(width: 10),
-
                 Expanded(
                   child: buildSummaryCard(
                     "Sets",
@@ -75,9 +78,7 @@ class MuscleDetailScreen extends StatelessWidget {
                     Icons.repeat,
                   ),
                 ),
-
                 const SizedBox(width: 10),
-
                 Expanded(
                   child: buildSummaryCard(
                     "Volume",
@@ -127,9 +128,15 @@ class MuscleDetailScreen extends StatelessWidget {
                           )
                           .toList();
 
+                  // Plank uses duration in seconds,
+                  // but it is not a cardio exercise.
+                  final isPlank =
+                      exerciseName == 'Plank';
+
                   final isCardio =
                       exerciseWorkouts.first.duration !=
-                          null;
+                              null &&
+                          !isPlank;
 
                   if (isCardio) {
                     final totalMinutes =
@@ -145,12 +152,10 @@ class MuscleDetailScreen extends StatelessWidget {
                           const EdgeInsets.only(
                         bottom: 10,
                       ),
-
                       child: ListTile(
                         leading: const Icon(
                           Icons.directions_run,
                         ),
-
                         title: Text(
                           exerciseName,
                           style:
@@ -159,9 +164,45 @@ class MuscleDetailScreen extends StatelessWidget {
                                 FontWeight.bold,
                           ),
                         ),
-
                         subtitle: Text(
                           "${totalMinutes.toStringAsFixed(0)} min cardio",
+                        ),
+                      ),
+                    );
+                  }
+
+                  if (isPlank) {
+                    final totalSeconds =
+                        exerciseWorkouts.fold<double>(
+                      0,
+                      (sum, workout) =>
+                          sum +
+                          (workout.duration ?? 0),
+                    );
+
+                    final sets =
+                        exerciseWorkouts.length;
+
+                    return Card(
+                      margin:
+                          const EdgeInsets.only(
+                        bottom: 10,
+                      ),
+                      child: ListTile(
+                        leading: const Icon(
+                          Icons.fitness_center,
+                        ),
+                        title: Text(
+                          exerciseName,
+                          style:
+                              const TextStyle(
+                            fontWeight:
+                                FontWeight.bold,
+                          ),
+                        ),
+                        subtitle: Text(
+                          "$sets Sets • "
+                          "${totalSeconds.toStringAsFixed(0)} sec",
                         ),
                       ),
                     );
@@ -184,13 +225,11 @@ class MuscleDetailScreen extends StatelessWidget {
                         const EdgeInsets.only(
                       bottom: 10,
                     ),
-
                     child: ListTile(
                       leading:
                           const Icon(
                         Icons.fitness_center,
                       ),
-
                       title: Text(
                         exerciseName,
                         style:
@@ -199,7 +238,6 @@ class MuscleDetailScreen extends StatelessWidget {
                               FontWeight.bold,
                         ),
                       ),
-
                       subtitle: Text(
                         "$sets Sets • "
                         "${volume.toStringAsFixed(0)} Kg Volume",
@@ -222,13 +260,10 @@ class MuscleDetailScreen extends StatelessWidget {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(12),
-
         child: Column(
           children: [
             Icon(icon),
-
             const SizedBox(height: 6),
-
             Text(
               value,
               style: const TextStyle(
@@ -237,9 +272,7 @@ class MuscleDetailScreen extends StatelessWidget {
                     FontWeight.bold,
               ),
             ),
-
             const SizedBox(height: 4),
-
             Text(
               title,
               textAlign: TextAlign.center,

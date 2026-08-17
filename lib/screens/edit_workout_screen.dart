@@ -68,8 +68,11 @@ class _EditWorkoutScreenState
     super.dispose();
   }
 
+  bool get isPlank =>
+      widget.workout.exercise == 'Plank';
+
   bool get isCardio =>
-      widget.workout.duration != null;
+      widget.workout.duration != null && !isPlank;
 
   Future<void> saveChanges() async {
     if (isCardio) {
@@ -100,18 +103,10 @@ class _EditWorkoutScreenState
         weight: 0,
         reps: 0,
         workoutDate: widget.workout.workoutDate,
-        duration: double.tryParse(
-          durationController.text.trim(),
-        ),
-        elevation: double.tryParse(
-          elevationController.text.trim(),
-        ),
-        distance: double.tryParse(
-          distanceController.text.trim(),
-        ),
-        calories: double.tryParse(
-          caloriesController.text.trim(),
-        ),
+        duration: double.tryParse(durationController.text.trim()),
+        elevation: double.tryParse(elevationController.text.trim()),
+        distance: double.tryParse(distanceController.text.trim()),
+        calories: double.tryParse(caloriesController.text.trim()),
         bodyArea: widget.workout.bodyArea,
       );
 
@@ -123,8 +118,37 @@ class _EditWorkoutScreenState
         return;
       }
 
-      await DatabaseHelper.instance
-          .updateWorkout(updatedWorkout);
+      await DatabaseHelper.instance.updateWorkout(updatedWorkout);
+    } else if (isPlank) {
+      if (durationController.text.trim().isEmpty) {
+        showMessage("Please enter duration");
+        return;
+      }
+
+      final duration = double.tryParse(
+        durationController.text.trim(),
+      );
+
+      if (duration == null || duration <= 0) {
+        showMessage("Please enter valid duration");
+        return;
+      }
+
+      final updatedWorkout = Workout(
+        id: widget.workout.id,
+        exercise: widget.workout.exercise,
+        setNo: widget.workout.setNo,
+        weight: widget.workout.weight,
+        reps: 0,
+        workoutDate: widget.workout.workoutDate,
+        duration: duration,
+        elevation: null,
+        distance: null,
+        calories: null,
+        bodyArea: widget.workout.bodyArea,
+      );
+
+      await DatabaseHelper.instance.updateWorkout(updatedWorkout);
     } else {
       if (weightController.text.trim().isEmpty) {
         showMessage("Please enter weight");
@@ -145,18 +169,13 @@ class _EditWorkoutScreenState
       );
 
       if (weight == null || reps == null) {
-        showMessage(
-          "Please enter valid weight and reps",
-        );
+        showMessage("Please enter valid weight and reps");
         return;
       }
 
-      // Database always stores weight in KG.
       if (selectedWeightUnit == 'Lb') {
         weight = weight * 0.45359237;
-        weight = double.parse(
-          weight.toStringAsFixed(2),
-        );
+        weight = double.parse(weight.toStringAsFixed(2));
       }
 
       final updatedWorkout = Workout(
@@ -166,24 +185,21 @@ class _EditWorkoutScreenState
         weight: weight,
         reps: reps,
         workoutDate: widget.workout.workoutDate,
-        duration: widget.workout.duration,
-        elevation: widget.workout.elevation,
-        distance: widget.workout.distance,
-        calories: widget.workout.calories,
+        duration: null,
+        elevation: null,
+        distance: null,
+        calories: null,
         bodyArea: widget.workout.bodyArea,
       );
 
-      await DatabaseHelper.instance
-          .updateWorkout(updatedWorkout);
+      await DatabaseHelper.instance.updateWorkout(updatedWorkout);
     }
 
     if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text(
-          "Workout updated successfully!",
-        ),
+        content: Text("Workout updated successfully!"),
       ),
     );
 
@@ -240,90 +256,97 @@ class _EditWorkoutScreenState
             // ---------------------------------------
 
             if (!isCardio) ...[
-              Row(
-                children: [
-                  const Text(
-                    "Weight Unit:",
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
+              if (!isPlank) ...[
+                Row(
+                  children: [
+                    const Text(
+                      "Weight Unit:",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  DropdownButton<String>(
-                    value: selectedWeightUnit,
-                    items: const [
-                      DropdownMenuItem(
-                        value: 'Kg',
-                        child: Text('Kg'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'Lb',
-                        child: Text('Lb'),
-                      ),
-                    ],
-                    onChanged: (value) {
-                      if (value == null ||
-                          value == selectedWeightUnit) {
-                        return;
-                      }
-
-                      final currentWeight =
-                          double.tryParse(
-                        weightController.text.trim(),
-                      );
-
-                      if (currentWeight != null) {
-                        double convertedWeight;
-
-                        if (selectedWeightUnit == 'Kg' &&
-                            value == 'Lb') {
-                          convertedWeight =
-                              currentWeight * 2.2046226218;
-                        } else if (selectedWeightUnit == 'Lb' &&
-                            value == 'Kg') {
-                          convertedWeight =
-                              currentWeight * 0.45359237;
-                        } else {
-                          convertedWeight = currentWeight;
+                    const SizedBox(width: 12),
+                    DropdownButton<String>(
+                      value: selectedWeightUnit,
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'Kg',
+                          child: Text('Kg'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'Lb',
+                          child: Text('Lb'),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        if (value == null ||
+                            value == selectedWeightUnit) {
+                          return;
                         }
 
-                        weightController.text =
-                            convertedWeight.toStringAsFixed(2);
-                      }
+                        final currentWeight = double.tryParse(
+                          weightController.text.trim(),
+                        );
 
-                      setState(() {
-                        selectedWeightUnit = value;
-                      });
-                    },
+                        if (currentWeight != null) {
+                          double convertedWeight;
+
+                          if (selectedWeightUnit == 'Kg' &&
+                              value == 'Lb') {
+                            convertedWeight =
+                                currentWeight * 2.2046226218;
+                          } else if (selectedWeightUnit == 'Lb' &&
+                              value == 'Kg') {
+                            convertedWeight =
+                                currentWeight * 0.45359237;
+                          } else {
+                            convertedWeight = currentWeight;
+                          }
+
+                          weightController.text =
+                              convertedWeight.toStringAsFixed(2);
+                        }
+
+                        setState(() {
+                          selectedWeightUnit = value;
+                        });
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 15),
+                TextField(
+                  controller: weightController,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(
+                    decimal: true,
                   ),
-                ],
-              ),
-
-              const SizedBox(height: 15),
-
-              TextField(
-                controller: weightController,
-                keyboardType:
-                    const TextInputType.numberWithOptions(
-                  decimal: true,
+                  decoration: InputDecoration(
+                    labelText: "Weight ($selectedWeightUnit)",
+                    border: const OutlineInputBorder(),
+                  ),
                 ),
-                decoration: InputDecoration(
-                  labelText:
-                      "Weight ($selectedWeightUnit)",
-                  border: const OutlineInputBorder(),
-                ),
-              ),
+                const SizedBox(height: 20),
+              ],
 
-              const SizedBox(height: 20),
-
-              TextField(
-                controller: repsController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: "Reps",
-                  border: OutlineInputBorder(),
+              if (isPlank)
+                TextField(
+                  controller: durationController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: "Duration (sec)",
+                    border: OutlineInputBorder(),
+                  ),
+                )
+              else
+                TextField(
+                  controller: repsController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: "Reps",
+                    border: OutlineInputBorder(),
+                  ),
                 ),
-              ),
             ]
 
             // ---------------------------------------

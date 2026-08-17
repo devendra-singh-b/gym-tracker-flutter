@@ -20,8 +20,11 @@ class _HomeScreenState extends State<HomeScreen> {
   int selectedPeriod = 0;
   List<Workout> workouts = [];
   bool isLoading = true;
+
   double? _heightCm;
 double? _currentWeight;
+String _userName = '';
+
   @override
 void initState() {
   super.initState();
@@ -124,9 +127,15 @@ void initState() {
   final latestWeight =
       await DatabaseHelper.instance.getLatestWeight();
 
+  final userName =
+    await DatabaseHelper.instance.getUserName();
+
   if (!mounted) return;
 
   setState(() {
+
+    _userName = userName;
+
     if (profile != null && profile['height'] is num) {
       _heightCm =
           (profile['height'] as num).toDouble();
@@ -215,6 +224,85 @@ double get totalCardioCalories {
       .where((w) => w.duration != null)
       .fold(0, (sum, w) => sum + (w.calories ?? 0));
 }
+  int get workoutDays {
+    final uniqueDates = <String>{};
+
+    for (final workout in workouts) {
+      final date = DateTime.tryParse(workout.workoutDate);
+
+      if (date == null) {
+        continue;
+      }
+
+      uniqueDates.add(
+        "${date.year}-${date.month.toString().padLeft(2, '0')}-"
+        "${date.day.toString().padLeft(2, '0')}",
+      );
+    }
+
+    return uniqueDates.length;
+  }
+
+  int get periodDaysElapsed {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
+    late DateTime startDate;
+    late DateTime endDate;
+
+    if (selectedPeriod == 0) {
+      startDate = today;
+      endDate = today.add(const Duration(days: 1));
+    } else if (selectedPeriod == 1) {
+      final daysFromMonday =
+          today.weekday - DateTime.monday;
+
+      startDate = today.subtract(
+        Duration(days: daysFromMonday),
+      );
+
+      endDate = startDate.add(
+        const Duration(days: 7),
+      );
+    } else if (selectedPeriod == 2) {
+      startDate = DateTime(
+        today.year,
+        today.month,
+        1,
+      );
+
+      endDate = DateTime(
+        today.year,
+        today.month + 1,
+        1,
+      );
+    } else {
+      startDate = DateTime(
+        today.year,
+        1,
+        1,
+      );
+
+      endDate = DateTime(
+        today.year + 1,
+        1,
+        1,
+      );
+    }
+
+    // Do not count future dates in the current period as rest days.
+    final tomorrow = today.add(const Duration(days: 1));
+    final effectiveEndDate =
+        endDate.isAfter(tomorrow) ? tomorrow : endDate;
+
+    return effectiveEndDate.difference(startDate).inDays;
+  }
+
+  int get restDays {
+    final value = periodDaysElapsed - workoutDays;
+    return value < 0 ? 0 : value;
+  }
+
   Map<String, int> get bodyAreaCount {
   final Map<String, int> result = {};
   for (final workout in workouts) {
@@ -245,7 +333,11 @@ double get totalCardioCalories {
     return Scaffold(
       drawer: buildDrawer(),
       appBar: AppBar(
-        title: const Text("Welcome Devendra"),
+        title: Text(
+  _userName.isEmpty
+      ? 'Welcome'
+      : 'Welcome $_userName',
+),
         centerTitle: true,
       ),
       body: RefreshIndicator(
@@ -285,36 +377,52 @@ SizedBox(
         const Size(double.infinity, 48),
       ),
     ),
-    segments: const [
-      ButtonSegment<int>(
-        value: 0,
-        label: FittedBox(
-          fit: BoxFit.scaleDown,
-          child: Text("Daily"),
-        ),
+   segments: const [
+  ButtonSegment<int>(
+    value: 0,
+    label: FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Text(
+        "Daily",
+        maxLines: 1,
+        softWrap: false,
       ),
-      ButtonSegment<int>(
-        value: 1,
-        label: FittedBox(
-          fit: BoxFit.scaleDown,
-          child: Text("Weekly"),
-        ),
+    ),
+  ),
+  ButtonSegment<int>(
+    value: 1,
+    label: FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Text(
+        "Weekly",
+        maxLines: 1,
+        softWrap: false,
       ),
-      ButtonSegment<int>(
-        value: 2,
-        label: FittedBox(
-          fit: BoxFit.scaleDown,
-          child: Text("Monthly"),
-        ),
+    ),
+  ),
+  ButtonSegment<int>(
+    value: 2,
+    label: FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Text(
+        "Monthly",
+        maxLines: 1,
+        softWrap: false,
       ),
-      ButtonSegment<int>(
-        value: 3,
-        label: FittedBox(
-          fit: BoxFit.scaleDown,
-          child: Text("Yearly"),
-        ),
+    ),
+  ),
+  ButtonSegment<int>(
+    value: 3,
+    label: FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Text(
+        "Yearly",
+        maxLines: 1,
+        softWrap: false,
       ),
-    ],
+    ),
+  ),
+],
     selected: {
       selectedPeriod,
     },
@@ -385,17 +493,28 @@ Row(
   ],
 ),
 
-if (bmi != null)
-  Padding(
-    padding: const EdgeInsets.only(top: 8),
-    child: Text(
-      "BMI: ${bmi!.toStringAsFixed(1)} • $bmiLabel",
-      style: const TextStyle(
-        fontSize: 14,
-        fontWeight: FontWeight.w500,
+const SizedBox(height: 10),
+
+Row(
+  children: [
+    Expanded(
+      child: buildStatCard(
+        Icons.event_available,
+        "Workout Days",
+        "$workoutDays",
       ),
     ),
-  ),
+    const SizedBox(width: 10),
+    Expanded(
+      child: buildStatCard(
+        Icons.event_busy,
+        "Rest Days",
+        "$restDays",
+      ),
+    ),
+  ],
+),
+
                     const SizedBox(height: 30),
 // ==================================
 // BODY MAP
@@ -553,13 +672,15 @@ const SizedBox(height: 25),
       child: ListView(
         padding: EdgeInsets.zero,
         children: [
-          const UserAccountsDrawerHeader(
-            accountName: Text(
-              "Devendra",
-              style: TextStyle(
-                fontSize: 20,
-              ),
-            ),
+          UserAccountsDrawerHeader(
+  accountName: Text(
+    _userName.isEmpty
+        ? 'Gym User'
+        : _userName,
+    style: const TextStyle(
+      fontSize: 20,
+    ),
+  ),
             accountEmail: Text(
               "Gym Tracker",
             ),

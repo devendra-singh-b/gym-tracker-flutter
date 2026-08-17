@@ -40,7 +40,7 @@ class DatabaseHelper {
 
   final db = await openDatabase(
     path,
-    version: 7,
+    version: 10,
     onCreate: _createDB,
     onUpgrade: _upgradeDB,
   );
@@ -64,6 +64,9 @@ class DatabaseHelper {
       isSit,
     );
   }
+
+  // Make sure required exercises exist even in older/restored seed databases.
+  await _ensureRequiredExercises(db);
 
   // // Temporary diagnostic log.
   // final verifyExercises = await db.rawQuery(
@@ -170,11 +173,37 @@ Future<void> _ensureRequiredTables(Database db) async {
   await db.execute('''
     CREATE TABLE IF NOT EXISTS body_profile (
       id INTEGER PRIMARY KEY,
+      name TEXT,
       height REAL,
       heightUnit TEXT NOT NULL DEFAULT 'cm',
+      profileCompleted INTEGER NOT NULL DEFAULT 0,
       updatedDate TEXT
     )
   ''');
+
+  // Make sure older/restored databases also get the new columns.
+  await _addColumnIfMissing(
+    db,
+    'body_profile',
+    'name',
+    'TEXT',
+  );
+
+  await _addColumnIfMissing(
+    db,
+    'body_profile',
+    'profileCompleted',
+    'INTEGER NOT NULL DEFAULT 0',
+  );
+
+  await db.execute('''
+    CREATE TABLE IF NOT EXISTS weight_history (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      weight REAL NOT NULL,
+      recordedDate TEXT NOT NULL
+    )
+  ''');
+
 
   await db.execute('''
     CREATE TABLE IF NOT EXISTS weight_history (
@@ -184,7 +213,6 @@ Future<void> _ensureRequiredTables(Database db) async {
     )
   ''');
 }
-
 
   Future<void> _createDB(Database db, int version) async {
     await db.execute('''
@@ -203,15 +231,16 @@ Future<void> _ensureRequiredTables(Database db) async {
     ''');
 
     await db.execute('''
-      CREATE TABLE exercise_master (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        bodyArea TEXT NOT NULL,
-        exercise TEXT NOT NULL,
-        setEnabled INTEGER NOT NULL,
-        weightEnabled INTEGER NOT NULL,
-        repsEnabled INTEGER NOT NULL
-      )
-    ''');
+  CREATE TABLE exercise_master (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    bodyArea TEXT NOT NULL,
+    exercise TEXT NOT NULL,
+    setEnabled INTEGER NOT NULL,
+    weightEnabled INTEGER NOT NULL,
+    repsEnabled INTEGER NOT NULL,
+    measurementType TEXT NOT NULL DEFAULT 'reps'
+  )
+''');
 
   }
 
@@ -309,6 +338,45 @@ Future<void> _ensureRequiredTables(Database db) async {
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
   }
+
+    // Version 8: Add user profile information.
+  if (oldVersion < 8) {
+    await _addColumnIfMissing(
+      db,
+      'body_profile',
+      'name',
+      'TEXT',
+    );
+
+    await _addColumnIfMissing(
+      db,
+      'body_profile',
+      'profileCompleted',
+      'INTEGER NOT NULL DEFAULT 0',
+    );
+  }
+
+  // Version 9: Add measurement type to exercise master.
+  if (oldVersion < 9) {
+    await _addColumnIfMissing(
+      db,
+      'exercise_master',
+      'measurementType',
+      "TEXT NOT NULL DEFAULT 'reps'",
+    );
+  }
+
+  // Version 10: Add/update required exercises.
+  if (oldVersion < 10) {
+    await _addColumnIfMissing(
+      db,
+      'exercise_master',
+      'measurementType',
+      "TEXT NOT NULL DEFAULT 'reps'",
+    );
+
+    await _ensureRequiredExercises(db);
+  }
 }
 
   Future<void> _addColumnIfMissing(
@@ -332,7 +400,39 @@ Future<void> _ensureRequiredTables(Database db) async {
     }
   }
 
- Future _insertExercises(Database db) async {
+ Future<void> _ensureRequiredExercises(Database db) async {
+    final tiltResult = await db.query(
+      'exercise_master',
+      columns: ['id'],
+      where: 'exercise = ?',
+      whereArgs: ['Tilt Seated Calf Raise'],
+      limit: 1,
+    );
+
+    if (tiltResult.isEmpty) {
+      await db.insert(
+        'exercise_master',
+        {
+          'bodyArea': 'Leg',
+          'exercise': 'Tilt Seated Calf Raise',
+          'setEnabled': 1,
+          'weightEnabled': 1,
+          'repsEnabled': 1,
+          'measurementType': 'reps',
+        },
+      );
+    }
+
+    // Plank is time-based and should be recorded in seconds.
+    await db.update(
+      'exercise_master',
+      {'measurementType': 'duration_sec'},
+      where: 'exercise = ?',
+      whereArgs: ['Plank'],
+    );
+  }
+
+  Future _insertExercises(Database db) async {
   final exercises = [
     // ==================== LEG ====================
     Exercise(
@@ -363,6 +463,16 @@ Future<void> _ensureRequiredTables(Database db) async {
       weightEnabled: true,
       repsEnabled: true,
     ),
+
+    Exercise(
+  bodyArea: 'Leg',
+  exercise: 'Tilt Seated Calf Raise',
+  setEnabled: true,
+  weightEnabled: true,
+  repsEnabled: true,
+  measurementType: 'reps',
+   ),
+
     Exercise(
       bodyArea: 'Leg',
       exercise: 'Leg Curl',
@@ -692,10 +802,11 @@ Future<void> _ensureRequiredTables(Database db) async {
     ),
     Exercise(
       bodyArea: 'Core',
-      exercise: 'Plank',
-      setEnabled: true,
-      weightEnabled: false,
-      repsEnabled: false,
+  exercise: 'Plank',
+  setEnabled: true,
+  weightEnabled: false,
+  repsEnabled: false,
+  measurementType: 'duration_sec',
     ),
     Exercise(
       bodyArea: 'Core',
@@ -848,6 +959,96 @@ Future<void> _ensureRequiredTables(Database db) async {
   }
 
   // ==================== BODY PROFILE ====================
+
+    // SAVE COMPLETE USER PROFILE
+  Future<int> saveUserProfile({
+    required String name,
+    required double height,
+    required double weight,
+  }) async {
+    final db = await instance.database;
+
+    final now = DateTime.now().toIso8601String();
+
+    final existing = await db.query(
+      'body_profile',
+      limit: 1,
+    );
+
+    if (existing.isEmpty) {
+      await db.insert(
+        'body_profile',
+        {
+          'id': 1,
+          'name': name,
+          'height': height,
+          'heightUnit': 'cm',
+          'profileCompleted': 1,
+          'updatedDate': now,
+        },
+      );
+    } else {
+      await db.update(
+        'body_profile',
+        {
+          'name': name,
+          'height': height,
+          'heightUnit': 'cm',
+          'profileCompleted': 1,
+          'updatedDate': now,
+        },
+        where: 'id = ?',
+        whereArgs: [existing.first['id']],
+      );
+    }
+
+    // Initial weight is stored in weight history.
+    await db.insert(
+      'weight_history',
+      {
+        'weight': weight,
+        'recordedDate': now,
+      },
+    );
+
+    return 1;
+  }
+
+  // CHECK WHETHER USER PROFILE IS COMPLETED
+  Future<bool> isProfileCompleted() async {
+    final profile = await getBodyProfile();
+
+    if (profile == null) {
+      return false;
+    }
+
+    return profile['profileCompleted'] == 1;
+  }
+
+    // GET USER NAME
+  Future<String> getUserName() async {
+    final profile = await getBodyProfile();
+
+    if (profile == null) {
+      return '';
+    }
+
+    return profile['name']?.toString() ?? '';
+  }
+
+Future<void> updateUserName(String name) async {
+  final db = await instance.database;
+
+  await db.update(
+    'body_profile',
+    {
+      'name': name.trim(),
+      'updatedDate': DateTime.now().toIso8601String(),
+    },
+    where: 'id = ?',
+    whereArgs: [1],
+  );
+}
 
   // SAVE / UPDATE HEIGHT
   Future<int> saveHeight(

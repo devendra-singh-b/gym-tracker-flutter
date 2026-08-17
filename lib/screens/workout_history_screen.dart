@@ -79,8 +79,11 @@ class _WorkoutHistoryScreenState
               itemBuilder: (context, index) {
                 final workout = workouts[index];
 
-                final isCardio =
-                    workout.duration != null;
+                final isPlank =
+    workout.exercise == 'Plank';
+
+final isCardio =
+    workout.duration != null && !isPlank;
 
                 return Card(
                   margin:
@@ -103,16 +106,19 @@ class _WorkoutHistoryScreenState
                     ),
 
                     subtitle: Text(
-                      "${_formatWorkoutDate(workout.workoutDate)}\n"
-                      "${isCardio
-                          ? "${workout.duration} min • "
-                            "${workout.distance} km • "
-                            "${workout.calories} kcal • "
-                            "Elevation ${workout.elevation}"
-                          : "Set ${workout.setNo} • "
-                            "${workout.weight} Kg • "
-                            "${workout.reps} reps"}",
-                    ),
+  "${_formatWorkoutDate(workout.workoutDate)}\n"
+  "${isCardio
+      ? "${workout.duration} min • "
+        "${workout.distance} km • "
+        "${workout.calories} kcal • "
+        "Elevation ${workout.elevation}"
+      : isPlank
+          ? "Set ${workout.setNo} • "
+            "${workout.duration?.toStringAsFixed(0)} sec"
+          : "Set ${workout.setNo} • "
+            "${workout.weight} Kg • "
+            "${workout.reps} reps"}",
+),
 
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,

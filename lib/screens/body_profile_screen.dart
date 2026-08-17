@@ -31,8 +31,7 @@ class _HeightDialogState extends State<_HeightDialog> {
   }
 
   void _save() {
-    final height =
-        double.tryParse(_controller.text.trim());
+    final height = double.tryParse(_controller.text.trim());
 
     if (height == null || height <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -75,6 +74,76 @@ class _HeightDialogState extends State<_HeightDialog> {
   }
 }
 
+class _NameDialog extends StatefulWidget {
+  const _NameDialog({
+    required this.initialName,
+  });
+
+  final String initialName;
+
+  @override
+  State<_NameDialog> createState() => _NameDialogState();
+}
+
+class _NameDialogState extends State<_NameDialog> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _controller = TextEditingController(
+      text: widget.initialName,
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _save() {
+    final name = _controller.text.trim();
+
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter a valid name.'),
+        ),
+      );
+      return;
+    }
+
+    Navigator.of(context).pop(name);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Update Name'),
+      content: TextField(
+        controller: _controller,
+        textCapitalization: TextCapitalization.words,
+        decoration: const InputDecoration(
+          labelText: 'Name',
+          border: OutlineInputBorder(),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('CANCEL'),
+        ),
+        ElevatedButton(
+          onPressed: _save,
+          child: const Text('SAVE'),
+        ),
+      ],
+    );
+  }
+}
+
 class BodyProfileScreen extends StatefulWidget {
   const BodyProfileScreen({super.key});
 
@@ -83,6 +152,9 @@ class BodyProfileScreen extends StatefulWidget {
 }
 
 class _BodyProfileScreenState extends State<BodyProfileScreen> {
+  final TextEditingController _nameController =
+      TextEditingController();
+
   final TextEditingController _heightController =
       TextEditingController();
 
@@ -103,6 +175,7 @@ class _BodyProfileScreenState extends State<BodyProfileScreen> {
 
   @override
   void dispose() {
+    _nameController.dispose();
     _heightController.dispose();
     _weightController.dispose();
     super.dispose();
@@ -129,6 +202,15 @@ class _BodyProfileScreenState extends State<BodyProfileScreen> {
       if (!mounted) return;
 
       setState(() {
+        // Load Name
+        if (profile != null) {
+          _nameController.text =
+              profile['name']?.toString() ?? '';
+        } else {
+          _nameController.clear();
+        }
+
+        // Load Height
         if (profile != null && profile['height'] is num) {
           _heightController.text =
               (profile['height'] as num).toString();
@@ -136,6 +218,7 @@ class _BodyProfileScreenState extends State<BodyProfileScreen> {
           _heightController.clear();
         }
 
+        // Load Current Weight
         if (latestWeight != null &&
             latestWeight['weight'] is num) {
           _currentWeight =
@@ -182,6 +265,7 @@ class _BodyProfileScreenState extends State<BodyProfileScreen> {
       _showMessage('Height saved');
     } catch (e) {
       if (!mounted) return;
+
       _showMessage('Unable to save height: $e');
     }
   }
@@ -201,11 +285,44 @@ class _BodyProfileScreenState extends State<BodyProfileScreen> {
       await _loadProfile();
 
       if (!mounted) return;
+
       _showMessage('Weight added');
     } catch (e) {
       _showMessage('Unable to add weight: $e');
     }
   }
+
+  Future<void> _editName() async {
+  final result = await showDialog<String>(
+    context: context,
+    builder: (dialogContext) {
+      return _NameDialog(
+        initialName: _nameController.text,
+      );
+    },
+  );
+
+  if (!mounted || result == null) {
+    return;
+  }
+
+  try {
+    await DatabaseHelper.instance.updateUserName(result);
+
+    if (!mounted) return;
+
+    setState(() {
+      _nameController.text = result;
+    });
+
+    _showMessage('Name updated');
+  } catch (e) {
+    if (!mounted) return;
+
+    _showMessage('Unable to update name: $e');
+  }
+}
+
 
   Future<void> _editHeight() async {
     final result = await showDialog<double>(
@@ -231,6 +348,7 @@ class _BodyProfileScreenState extends State<BodyProfileScreen> {
       _showMessage('Height updated');
     } catch (e) {
       if (!mounted) return;
+
       _showMessage('Unable to update height: $e');
     }
   }
@@ -272,6 +390,7 @@ class _BodyProfileScreenState extends State<BodyProfileScreen> {
       await _loadProfile();
 
       if (!mounted) return;
+
       _showMessage('Weight deleted');
     } catch (e) {
       _showMessage('Unable to delete weight: $e');
@@ -339,6 +458,51 @@ class _BodyProfileScreenState extends State<BodyProfileScreen> {
                   child: ListView(
                     padding: const EdgeInsets.all(16),
                     children: [
+                      // NAME
+                      Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment:
+                                CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Name',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      _nameController.text.isEmpty
+                                          ? 'Not set'
+                                          : _nameController.text,
+                                      style: const TextStyle(
+                                        fontSize: 22,
+                                      ),
+                                    ),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.edit_outlined,
+                                    ),
+                                    tooltip: 'Edit name',
+                                    onPressed: _editName,
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      // HEIGHT
                       Card(
                         child: Padding(
                           padding: const EdgeInsets.all(16),
@@ -388,7 +552,10 @@ class _BodyProfileScreenState extends State<BodyProfileScreen> {
                           ),
                         ),
                       ),
+
                       const SizedBox(height: 12),
+
+                      // CURRENT WEIGHT
                       Card(
                         child: Padding(
                           padding: const EdgeInsets.all(16),
@@ -440,7 +607,9 @@ class _BodyProfileScreenState extends State<BodyProfileScreen> {
                           ),
                         ),
                       ),
+
                       const SizedBox(height: 20),
+
                       const Text(
                         'Weight History',
                         style: TextStyle(
@@ -448,7 +617,9 @@ class _BodyProfileScreenState extends State<BodyProfileScreen> {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
+
                       const SizedBox(height: 8),
+
                       if (_weightHistory.isEmpty)
                         const Card(
                           child: Padding(

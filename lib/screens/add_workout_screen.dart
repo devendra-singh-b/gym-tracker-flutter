@@ -23,7 +23,7 @@ class _AddWorkoutScreenState extends State<AddWorkoutScreen> {
   // Multiple set controllers
   final List<TextEditingController> weightControllers = [];
   final List<TextEditingController> repsControllers = [];
-
+  final List<TextEditingController> durationControllers = [];
   // Cardio controllers
   final TextEditingController durationController =
       TextEditingController();
@@ -322,6 +322,10 @@ class _AddWorkoutScreenState extends State<AddWorkoutScreen> {
     distanceController.clear();
     caloriesController.clear();
 
+    for (final controller in durationControllers) {
+  controller.clear();
+    }
+
     for (final controller in weightControllers) {
       controller.clear();
     }
@@ -350,6 +354,10 @@ class _AddWorkoutScreenState extends State<AddWorkoutScreen> {
       repsControllers.add(
         TextEditingController(),
       );
+
+      durationControllers.add(
+        TextEditingController(),
+      );
     });
   }
 
@@ -363,8 +371,12 @@ class _AddWorkoutScreenState extends State<AddWorkoutScreen> {
       controller.dispose();
     }
 
+   for (final controller in durationControllers) {
+  controller.dispose();
+    }
     weightControllers.clear();
     repsControllers.clear();
+    durationControllers.clear();
 
     addSet();
   }
@@ -377,10 +389,11 @@ void removeSet(int index) {
 
   weightControllers[index].dispose();
   repsControllers[index].dispose();
-
+  durationControllers[index].dispose();
   setState(() {
     weightControllers.removeAt(index);
     repsControllers.removeAt(index);
+    durationControllers.removeAt(index);
   });
 }
 
@@ -389,10 +402,13 @@ void removeSet(int index) {
     for (final controller in weightControllers) {
       controller.dispose();
     }
-
     for (final controller in repsControllers) {
       controller.dispose();
     }
+    for (final controller in durationControllers) {
+       controller.dispose();
+    }
+
 
     durationController.dispose();
     elevationController.dispose();
@@ -483,6 +499,9 @@ final workout = Workout(
         final repsText =
             repsControllers[i].text.trim();
 
+        final durationText =
+           durationControllers[i].text.trim();
+
         // Weight validation
         if (selectedExercise!.weightEnabled &&
             weightText.isEmpty) {
@@ -491,11 +510,20 @@ final workout = Workout(
         }
 
         // Reps validation
-        if (selectedExercise!.repsEnabled &&
-            repsText.isEmpty) {
-          showMessage("Please enter reps for Set $setNumber");
-          return;
-        }
+        if (selectedExercise!.measurementType == 'duration_sec') {
+  if (durationText.isEmpty) {
+    showMessage(
+      "Please enter duration for Set $setNumber",
+    );
+    return;
+  }
+} else if (selectedExercise!.repsEnabled &&
+    repsText.isEmpty) {
+  showMessage(
+    "Please enter reps for Set $setNumber",
+  );
+  return;
+}
 
         // Convert weight to KG before saving.
         double weight = selectedExercise!.weightEnabled
@@ -514,15 +542,20 @@ final workout = Workout(
 
           weight: weight,
 
-          reps: selectedExercise!.repsEnabled
-              ? int.parse(repsText)
-              : 0,
+          reps: selectedExercise!.measurementType == 'duration_sec'
+    ? 0
+    : selectedExercise!.repsEnabled
+        ? int.parse(repsText)
+        : 0,
 
-          workoutDate:
-              DateTime.now().toIso8601String(),
+workoutDate:
+    DateTime.now().toIso8601String(),
 
-          duration: null,
-          elevation: null,
+duration: selectedExercise!.measurementType == 'duration_sec'
+    ? double.parse(durationText)
+    : null,
+
+elevation: null,
         );
 
         await DatabaseHelper.instance
@@ -744,25 +777,28 @@ const SizedBox(height: 15),
                         const SizedBox(width: 10),
 
                       // REPS
-                      if (selectedExercise
-                              ?.repsEnabled ==
-                          true)
-                        Expanded(
-                          child: TextField(
-                            controller:
-                                repsControllers[i],
-
-                            keyboardType:
-                                TextInputType.number,
-
-                            decoration:
-                                const InputDecoration(
-                              labelText: "Reps",
-                              border:
-                                  OutlineInputBorder(),
-                            ),
-                          ),
-                        ),
+                      if (selectedExercise?.measurementType == 'duration_sec')
+  Expanded(
+    child: TextField(
+      controller: durationControllers[i],
+      keyboardType: TextInputType.number,
+      decoration: const InputDecoration(
+        labelText: "Duration (sec)",
+        border: OutlineInputBorder(),
+      ),
+    ),
+  )
+else if (selectedExercise?.repsEnabled == true)
+  Expanded(
+    child: TextField(
+      controller: repsControllers[i],
+      keyboardType: TextInputType.number,
+      decoration: const InputDecoration(
+        labelText: "Reps",
+        border: OutlineInputBorder(),
+      ),
+    ),
+  ),
                         
                         const SizedBox(width: 4),
 

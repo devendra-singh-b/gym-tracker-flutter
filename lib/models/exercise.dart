@@ -5,6 +5,7 @@ class Exercise {
   bool setEnabled;
   bool weightEnabled;
   bool repsEnabled;
+  String measurementType;
 
   Exercise({
     this.id,
@@ -13,6 +14,7 @@ class Exercise {
     required this.setEnabled,
     required this.weightEnabled,
     required this.repsEnabled,
+    this.measurementType = 'reps',
   });
 
   Map<String, dynamic> toMap() {
@@ -23,6 +25,7 @@ class Exercise {
       'setEnabled': setEnabled ? 1 : 0,
       'weightEnabled': weightEnabled ? 1 : 0,
       'repsEnabled': repsEnabled ? 1 : 0,
+      'measurementType': measurementType,
     };
   }
 
@@ -34,6 +37,8 @@ class Exercise {
       setEnabled: map['setEnabled'] == 1,
       weightEnabled: map['weightEnabled'] == 1,
       repsEnabled: map['repsEnabled'] == 1,
+      measurementType:
+          map['measurementType'] ?? 'reps',
     );
   }
 }
