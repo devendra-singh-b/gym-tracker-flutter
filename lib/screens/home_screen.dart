@@ -5,6 +5,7 @@ import 'add_workout_screen.dart';
 import 'workout_history_screen.dart';
 import 'body_profile_screen.dart';
 import 'muscle_detail_screen.dart';
+import 'progress_screen.dart';
 import '../widgets/body_map.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -759,17 +760,24 @@ const SizedBox(height: 25),
     );
   },
 ),
-        ListTile(
-  leading: const Icon(
-    Icons.bar_chart,
-  ),
-  title: const Text(
-    "Progress",
-  ),
-  onTap: () {
-    Navigator.pop(context);
-  },
-),
+          ListTile(
+            leading: const Icon(
+              Icons.bar_chart,
+            ),
+            title: const Text(
+              "Progress",
+            ),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) =>
+                      const ProgressScreen(),
+                ),
+              );
+            },
+          ),
           const Divider(),
           ListTile(
             leading: const Icon(
