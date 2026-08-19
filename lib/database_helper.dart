@@ -40,7 +40,7 @@ class DatabaseHelper {
 
   final db = await openDatabase(
     path,
-    version: 10,
+    version: 11,
     onCreate: _createDB,
     onUpgrade: _upgradeDB,
   );
@@ -377,6 +377,11 @@ Future<void> _ensureRequiredTables(Database db) async {
 
     await _ensureRequiredExercises(db);
   }
+
+  // Version 11: Add new Back and Biceps exercises.
+  if (oldVersion < 11) {
+    await _ensureRequiredExercises(db);
+  }
 }
 
   Future<void> _addColumnIfMissing(
@@ -401,26 +406,48 @@ Future<void> _ensureRequiredTables(Database db) async {
   }
 
  Future<void> _ensureRequiredExercises(Database db) async {
-    final tiltResult = await db.query(
-      'exercise_master',
-      columns: ['id'],
-      where: 'exercise = ?',
-      whereArgs: ['Tilt Seated Calf Raise'],
-      limit: 1,
-    );
+    final requiredExercises = [
+      {
+        'bodyArea': 'Leg',
+        'exercise': 'Tilt Seated Calf Raise',
+        'setEnabled': 1,
+        'weightEnabled': 1,
+        'repsEnabled': 1,
+        'measurementType': 'reps',
+      },
+      {
+        'bodyArea': 'Back',
+        'exercise': 'Rear Delt - Machine',
+        'setEnabled': 1,
+        'weightEnabled': 1,
+        'repsEnabled': 1,
+        'measurementType': 'reps',
+      },
+      {
+        'bodyArea': 'Bicep',
+        'exercise': 'Biceps Curl Machine',
+        'setEnabled': 1,
+        'weightEnabled': 1,
+        'repsEnabled': 1,
+        'measurementType': 'reps',
+      },
+    ];
 
-    if (tiltResult.isEmpty) {
-      await db.insert(
+    for (final exercise in requiredExercises) {
+      final result = await db.query(
         'exercise_master',
-        {
-          'bodyArea': 'Leg',
-          'exercise': 'Tilt Seated Calf Raise',
-          'setEnabled': 1,
-          'weightEnabled': 1,
-          'repsEnabled': 1,
-          'measurementType': 'reps',
-        },
+        columns: ['id'],
+        where: 'exercise = ?',
+        whereArgs: [exercise['exercise']],
+        limit: 1,
       );
+
+      if (result.isEmpty) {
+        await db.insert(
+          'exercise_master',
+          exercise,
+        );
+      }
     }
 
     // Plank is time-based and should be recorded in seconds.
